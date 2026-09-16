@@ -73,6 +73,32 @@ function buildCylindricalGearSolid(gp: GearParameters): any {
     solid = top.fuse(bottom).translate([0, 0, halfB])
   }
 
+  // Chaflán paramétrico a 45° en extremos axiales de los dientes (Z = 0 y Z = faceWidth)
+  if (gp.hasToothChamfer && (gp.toothChamfer || 0) > 0) {
+    const ra = dims.tipRadius
+    const maxC = Math.min(faceWidth * 0.35, (dims.tipRadius - dims.rootRadius) * 0.8, 5.0)
+    const c = Math.max(0.05, Math.min(gp.toothChamfer || 0.6, maxC))
+    const rOut = ra + 20
+
+    // Perfil cortador superior en el plano XZ (revolución alrededor de [0, 0, 1])
+    const topPen = draw([ra - c, faceWidth])
+      .lineTo([ra, faceWidth - c])
+      .lineTo([rOut, faceWidth - c])
+      .lineTo([rOut, faceWidth + 2])
+      .lineTo([ra - c, faceWidth + 2])
+    const topChamfer = topPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+    // Perfil cortador inferior en el plano XZ
+    const botPen = draw([ra - c, 0])
+      .lineTo([ra, c])
+      .lineTo([rOut, c])
+      .lineTo([rOut, -2])
+      .lineTo([ra - c, -2])
+    const botChamfer = botPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+    solid = solid.cut(makeCompound([topChamfer, botChamfer]))
+  }
+
   // Preparamos el cortador central (eje cilíndrico + chavetero DIN 6885) en una sola entidad geométrica:
   // Fusión rápida de dos primitivas simples (0.01s), evitando múltiples cortes pesados sobre las caras del engranaje.
   let shaftCutter: any = null
@@ -175,6 +201,38 @@ function buildRackSolid(gearParams: GearParameters): any {
     })
   } else {
     solid = getFreshSketch().extrude(faceWidth)
+  }
+
+  // Chaflán paramétrico a 45° en extremos de dientes de cremallera (Z = 0 y Z = faceWidth)
+  if (gearParams.hasToothChamfer && (gearParams.toothChamfer || 0) > 0) {
+    const ha = (gearParams.addendumCoeff ?? 1.0) * gearParams.module
+    const maxC = Math.min(faceWidth * 0.35, ha * 0.8, 5.0)
+    const c = Math.max(0.05, Math.min(gearParams.toothChamfer || 0.6, maxC))
+    const xSpan = rLength + 20
+
+    // Cortador superior en plano YZ (extruido a lo largo de X)
+    const topPen = draw([ha - c, faceWidth])
+      .lineTo([ha, faceWidth - c])
+      .lineTo([ha + 5, faceWidth - c])
+      .lineTo([ha + 5, faceWidth + 2])
+      .lineTo([ha - c, faceWidth + 2])
+    const topChamfer = topPen.close()
+      .sketchOnPlane('YZ')
+      .extrude(xSpan)
+      .translate([-xSpan / 2, 0, 0])
+
+    // Cortador inferior en plano YZ
+    const botPen = draw([ha - c, 0])
+      .lineTo([ha, c])
+      .lineTo([ha + 5, c])
+      .lineTo([ha + 5, -2])
+      .lineTo([ha - c, -2])
+    const botChamfer = botPen.close()
+      .sketchOnPlane('YZ')
+      .extrude(xSpan)
+      .translate([-xSpan / 2, 0, 0])
+
+    solid = solid.cut(makeCompound([topChamfer, botChamfer]))
   }
 
   // Taladros y cajeras DIN 912 para exportación STEP
@@ -299,7 +357,30 @@ self.onmessage = async (e: MessageEvent) => {
         const teethSolid: any = drawing.sketchOnPlane('XY').extrude(faceWidth)
         const outerR = Math.max(dims.tipRadius + 12, (gearParams.outerRingDiameter || 0) / 2 || dims.tipRadius + 15)
         const ring: any = drawCircle(outerR).sketchOnPlane('XY').extrude(faceWidth)
-        const solid = ring.cut(teethSolid)
+        let solid = ring.cut(teethSolid)
+
+        if (gearParams.hasToothChamfer && (gearParams.toothChamfer || 0) > 0) {
+          const ra = dims.tipRadius
+          const maxC = Math.min(faceWidth * 0.35, Math.abs(dims.pitchRadius - dims.tipRadius) * 0.8, 5.0)
+          const c = Math.max(0.05, Math.min(gearParams.toothChamfer || 0.6, maxC))
+
+          const topPen = draw([ra, faceWidth - c])
+            .lineTo([ra - 5, faceWidth - c])
+            .lineTo([ra - 5, faceWidth + 2])
+            .lineTo([ra + c, faceWidth + 2])
+            .lineTo([ra + c, faceWidth])
+          const topChamfer = topPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+          const botPen = draw([ra, c])
+            .lineTo([ra - 5, c])
+            .lineTo([ra - 5, -2])
+            .lineTo([ra + c, -2])
+            .lineTo([ra + c, 0])
+          const botChamfer = botPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+          solid = solid.cut(makeCompound([topChamfer, botChamfer]))
+        }
+
         self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
         stepBlob = solid.blobSTEP()
       } else {

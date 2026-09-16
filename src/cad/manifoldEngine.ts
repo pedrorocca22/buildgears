@@ -111,6 +111,19 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
       gearSolid = cs.extrude(faceWidth, 0, 0, [1, 1], true)
     }
 
+    // Chaflán paramétrico a 45° en bordes axiales de dientes de cremallera (Z = ±faceWidth / 2)
+    if (params.hasToothChamfer && (params.toothChamfer || 0) > 0) {
+      const ha = (params.addendumCoeff ?? 1.0) * params.module
+      const maxC = Math.min(faceWidth * 0.35, ha * 0.8, 5.0)
+      const c = Math.max(0.05, Math.min(params.toothChamfer || 0.6, maxC))
+      const w = c * Math.SQRT2
+      const topCutter = m3d.Manifold.cube([rLength + 20, w, w], true)
+        .rotate([45, 0, 0])
+        .translate([0, ha, faceWidth / 2])
+      const bottomCutter = topCutter.mirror([0, 0, 1])
+      gearSolid = gearSolid.subtract(topCutter).subtract(bottomCutter)
+    }
+
     // Taladros y cajeras normalizadas de fijación DIN 912 / ISO 4762
     if (params.rackMountingHoles) {
       const din912 = getDIN912Screw(params.rackScrewStandard || 'M5')
@@ -187,6 +200,19 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
     const outerR = Math.max(dims.tipRadius + 12, (params.outerRingDiameter || 0) / 2 || dims.tipRadius + 15)
     const ringCyl = m3d.Manifold.cylinder(faceWidth, outerR, outerR, 64, true)
     gearSolid = ringCyl.subtract(teethVoid)
+
+    if (params.hasToothChamfer && (params.toothChamfer || 0) > 0) {
+      const ra = dims.tipRadius
+      const maxC = Math.min(faceWidth * 0.35, Math.abs(dims.pitchRadius - dims.tipRadius) * 0.8, 5.0)
+      const c = Math.max(0.05, Math.min(params.toothChamfer || 0.6, maxC))
+      const hExtra = 2.0
+      const totalH = c + hExtra
+
+      const chamferCone = m3d.Manifold.cylinder(totalH, ra, ra + totalH, 64, false)
+        .translate([0, 0, faceWidth / 2 - c])
+      const bottomChamferCone = chamferCone.mirror([0, 0, 1])
+      gearSolid = gearSolid.subtract(chamferCone).subtract(bottomChamferCone)
+    }
   } else {
     // Engranajes cilíndricos (Recto, Helicoidal, Herringbone, Cónico)
     const contour = generateInvoluteProfile(params, 10)
@@ -216,6 +242,24 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
       const coneDist = dims.pitchRadius * 2.5
       const scaleTop = Math.max(0.4, (coneDist - faceWidth) / coneDist)
       gearSolid = cs.extrude(faceWidth, 0, 0, [scaleTop, scaleTop], true)
+    }
+
+    // Chaflán paramétrico a 45° en bordes axiales de los dientes (Z = ±faceWidth / 2)
+    if (params.hasToothChamfer && (params.toothChamfer || 0) > 0) {
+      const ra = dims.tipRadius
+      const maxC = Math.min(faceWidth * 0.35, (dims.tipRadius - dims.rootRadius) * 0.8, 5.0)
+      const c = Math.max(0.05, Math.min(params.toothChamfer || 0.6, maxC))
+      const hExtra = 2.0
+      const totalH = c + hExtra
+      const rOut = ra + 20
+
+      // Cono interior cortador: a Z=0 tiene radio ra, a Z=totalH tiene radio ra - totalH (pendiente 45°)
+      const innerCone = m3d.Manifold.cylinder(totalH, ra, ra - totalH, 64, false)
+      const outerCyl = m3d.Manifold.cylinder(totalH, rOut, rOut, 64, false)
+      const topCutter = outerCyl.subtract(innerCone).translate([0, 0, faceWidth / 2 - c])
+      const bottomCutter = topCutter.mirror([0, 0, 1])
+
+      gearSolid = gearSolid.subtract(topCutter).subtract(bottomCutter)
     }
   }
 

@@ -45,6 +45,8 @@ const defaultParams: GearParameters = {
   addendumCoeff: 1.0,
   dedendumCoeff: 1.25,
   faceWidth: 20,
+  hasToothChamfer: false,
+  toothChamfer: 0.6,
   boreDiameter: 0,
   hasKeyway: false,
   bodyStyle: 'solid',
@@ -72,6 +74,8 @@ const defaultParams: GearParameters = {
   rackPinionHubLength: 26,
   rackPinionHubOffset: 4,
   rackPinionHasKeyway: false,
+  rackPinionHasToothChamfer: false,
+  rackPinionToothChamfer: 0.6,
   rackPinionProfileShift: 0.0,
   rackViewFocus: 'both',
 }

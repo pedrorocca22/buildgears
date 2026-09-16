@@ -544,6 +544,54 @@ export const RightSidebar: React.FC = () => {
                   className="w-full accent-orange-500 cursor-pointer"
                 />
               </div>
+
+              {/* Chaflán Paramétrico de Dientes (45°) */}
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
+                    <span className="text-[10px] text-slate-400">Bisel en caras frontal y posterior</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGearParam('hasToothChamfer', !params.hasToothChamfer)}
+                    className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                      params.hasToothChamfer ? 'bg-orange-500' : 'bg-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                        params.hasToothChamfer ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {params.hasToothChamfer && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] text-slate-600">Tamaño Chaflán (c)</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {(params.toothChamfer || 0.6).toFixed(1)} mm
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max={Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))}
+                      step="0.1"
+                      value={params.toothChamfer || 0.6}
+                      onChange={(e) => setGearParam('toothChamfer', parseFloat(e.target.value))}
+                      className="w-full accent-orange-500 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[9px] text-slate-400">
+                      <span>0.1 mm</span>
+                      <span className="text-slate-500 font-medium">Bisel 45° anti-rebabas</span>
+                      <span>{Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))} mm</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -613,6 +661,54 @@ export const RightSidebar: React.FC = () => {
                 onChange={(e) => setGearParam('faceWidth', parseFloat(e.target.value))}
                 className="w-full accent-orange-500 cursor-pointer"
               />
+            </div>
+
+            {/* Chaflán Paramétrico de Dientes de Cremallera (45°) */}
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
+                  <span className="text-[10px] text-slate-400">Bisel en extremos axiales de la barra</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGearParam('hasToothChamfer', !params.hasToothChamfer)}
+                  className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                    params.hasToothChamfer ? 'bg-orange-500' : 'bg-slate-300'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      params.hasToothChamfer ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {params.hasToothChamfer && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-600">Tamaño Chaflán (c)</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">
+                      {(params.toothChamfer || 0.6).toFixed(1)} mm
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max={Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))}
+                    step="0.1"
+                    value={params.toothChamfer || 0.6}
+                    onChange={(e) => setGearParam('toothChamfer', parseFloat(e.target.value))}
+                    className="w-full accent-orange-500 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-400">
+                    <span>0.1 mm</span>
+                    <span className="text-slate-500 font-medium">Bisel 45° en dientes</span>
+                    <span>{Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))} mm</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Fijaciones DIN 912 */}
@@ -898,6 +994,54 @@ export const RightSidebar: React.FC = () => {
                     </button>
                     <span>80 mm</span>
                   </div>
+                </div>
+
+                {/* Chaflán Paramétrico de Dientes del Piñón (45°) */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
+                      <span className="text-[10px] text-slate-400">Bisel caras axiales del piñón</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGearParam('rackPinionHasToothChamfer', !params.rackPinionHasToothChamfer)}
+                      className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors ${
+                        params.rackPinionHasToothChamfer ? 'bg-orange-500' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                          params.rackPinionHasToothChamfer ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {params.rackPinionHasToothChamfer && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-slate-600">Tamaño Chaflán Piñón (c)</span>
+                        <span className="font-mono text-xs font-bold text-slate-900">
+                          {(params.rackPinionToothChamfer || 0.6).toFixed(1)} mm
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max={Math.min(3.0, Number(((params.rackPinionFaceWidth || params.faceWidth) * 0.35).toFixed(1)))}
+                        step="0.1"
+                        value={params.rackPinionToothChamfer || 0.6}
+                        onChange={(e) => setGearParam('rackPinionToothChamfer', parseFloat(e.target.value))}
+                        className="w-full accent-orange-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[9px] text-slate-400">
+                        <span>0.1 mm</span>
+                        <span className="text-slate-500 font-medium">Bisel 45° anti-rebabas</span>
+                        <span>{Math.min(3.0, Number(((params.rackPinionFaceWidth || params.faceWidth) * 0.35).toFixed(1)))} mm</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Estilo del cuerpo del piñón: Macizo / Buje */}

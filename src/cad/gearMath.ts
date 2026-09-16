@@ -487,6 +487,8 @@ export function getConjugatePinionParams(params: GearParameters): GearParameters
     keywayCustom: params.rackPinionKeywayCustom,
     keywayWidth: params.rackPinionKeywayWidth,
     keywayDepth: params.rackPinionKeywayDepth,
+    hasToothChamfer: params.rackPinionHasToothChamfer ?? params.hasToothChamfer ?? false,
+    toothChamfer: params.rackPinionToothChamfer ?? params.toothChamfer ?? 0.6,
     bodyStyle: params.rackPinionBodyStyle || 'solid',
     hubDiameter: params.rackPinionHubDiameter || Math.max(22, (params.rackPinionTeeth || 20) * params.module * 0.45),
     hubLength: params.rackPinionHubLength || 26,

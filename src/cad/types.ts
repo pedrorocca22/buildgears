@@ -36,8 +36,9 @@ export interface GearParameters {
   dedendumCoeff: number   // Coeficiente de pie hf* (estándar 1.25)
   toothProfileType?: ToothProfileType // Tipo de diseño de diente (norma de perfil)
   
-  // Dimensiones del cuerpo
   faceWidth: number       // Anchura de cara / espesor b (mm), ej: 20
+  hasToothChamfer?: boolean // Activar chaflán en caras frontal y posterior del dentado
+  toothChamfer?: number    // Dimensión del chaflán c (mm, ej: 0.6)
   boreDiameter: number    // Diámetro del eje central d_eje (mm), ej: 15
   hasKeyway: boolean      // Activar chavetero normalizado DIN 6885
   keywayCustom?: boolean  // Habilitar parametrización manual personalizada del chavetero
@@ -79,6 +80,8 @@ export interface GearParameters {
   rackPinionKeywayCustom?: boolean // Parametrización manual de chavetero en piñón
   rackPinionKeywayWidth?: number   // Anchura chavetero en piñón b (mm)
   rackPinionKeywayDepth?: number   // Profundidad en buje piñón t_2 (mm)
+  rackPinionHasToothChamfer?: boolean // Chaflán de dientes en piñón
+  rackPinionToothChamfer?: number     // Dimensión de chaflán de dientes en piñón (mm)
   rackPinionProfileShift?: number// Desplazamiento de perfil x_p del piñón
   rackViewFocus?: 'both' | 'rack' | 'pinion' // Enfoque visual del mecanismo
 }
