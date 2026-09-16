@@ -83,9 +83,30 @@ export async function runExport({
       fileName = `cremallera_${params.rackToothType || 'recta'}_m${params.module}_L${params.rackLength || 160}.${ext}`
     }
   } else {
-    onProgress(45, `Generando ${params.gearType} en Manifold-3D...`)
-    solid = await buildGearManifold(params)
-    fileName = `engranaje_${params.gearType}_m${params.module}_z${params.teeth}.${ext}`
+    if (target === 'assembly') {
+      const z2 = params.rackPinionTeeth || 24
+      const pairDims = calculateDimensions(params, z2)
+      const centerDist = pairDims.centerDistance || (params.module * (params.teeth + z2) / 2)
+      onProgress(35, 'Generando engranaje 1...')
+      const solid1 = await buildGearManifold(params)
+      onProgress(60, 'Generando engranaje 2 conjugado...')
+      const gear2Params = {
+        ...params,
+        gearType: (params.gearType === 'internal' ? 'spur' : params.gearType) as any,
+        teeth: z2,
+        helixHand: (params.helixHand === 'right' ? 'left' : 'right') as any,
+        bodyStyle: 'solid' as const,
+        boreDiameter: params.boreDiameter > 0 ? Math.min(params.boreDiameter, 14) : 0,
+        hasKeyway: false,
+      }
+      const solid2 = await buildGearManifold(gear2Params)
+      solid = solid1.add(solid2.translate([centerDist, 0, 0]))
+      fileName = `conjunto_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${z2}.${ext}`
+    } else {
+      onProgress(45, `Generando ${params.gearType} en Manifold-3D...`)
+      solid = await buildGearManifold(params)
+      fileName = `engranaje_${params.gearType}_m${params.module}_z${params.teeth}.${ext}`
+    }
   }
 
   onProgress(75, 'Triangulando y optimizando malla...')

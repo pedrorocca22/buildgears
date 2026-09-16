@@ -8,7 +8,6 @@ import {
   RotateCcw,
   Download,
   HelpCircle,
-  Loader2,
   Gauge,
   Layers,
   Sparkles,
@@ -54,10 +53,6 @@ export const RightSidebar: React.FC = () => {
 
   const handleExportSTL = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
     openExportModal('stl', target)
-  }
-
-  const handleExport3MF = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
-    openExportModal('3mf', target)
   }
 
   return (
@@ -1531,134 +1526,48 @@ export const RightSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* ÁREA FIJA INFERIOR DE ACCIONES DE EXPORTACIÓN */}
+      {/* ÁREA FIJA INFERIOR DE ACCIONES DE EXPORTACIÓN UNIFICADA */}
       <div className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0">
-        {isRack ? (
-          <>
-            {/* Botón Principal: Exportar Conjunto STEP */}
-            <button
-              type="button"
-              onClick={() => handleExportSTEP('assembly')}
-              disabled={exportStatus.isExporting}
-              className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              {exportStatus.isExporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Generando con OpenCASCADE...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Exportar Conjunto Ensamblado (STEP)</span>
-                </>
-              )}
-            </button>
+        {/* Fila 1: Descarga individual STEP y STL */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handleExportSTEP(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
+            disabled={exportStatus.isExporting}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Descargar modelo CAD analítico STEP (ISO 10303 - B-Rep)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Descargar STEP</span>
+          </button>
 
-            {/* Fila de Exportación Individual de Piezas */}
-            <div className="grid grid-cols-2 gap-1.5 pt-0.5">
-              <button
-                type="button"
-                onClick={() => handleExportSTEP('rack')}
-                disabled={exportStatus.isExporting}
-                className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10.5px] transition-colors"
-                title="Exporta solo la barra de cremallera en formato STEP analítico B-Rep"
-              >
-                <Download className="w-3 h-3 text-orange-400" />
-                <span>Cremallera (STEP)</span>
-              </button>
+          <button
+            type="button"
+            onClick={() => handleExportSTL(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
+            disabled={exportStatus.isExporting}
+            className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Descargar archivo de malla 3D STL para impresión"
+          >
+            <Download className="w-3.5 h-3.5 text-orange-400" />
+            <span>Descargar STL</span>
+          </button>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => handleExportSTEP('pinion')}
-                disabled={exportStatus.isExporting}
-                className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10.5px] transition-colors"
-                title="Exporta solo el piñón motriz conjugado en formato STEP analítico B-Rep"
-              >
-                <Download className="w-3 h-3 text-orange-400" />
-                <span>Piñón (STEP)</span>
-              </button>
-            </div>
-
-            {/* Fila de Descarga Rápida STL */}
-            <div className="grid grid-cols-3 gap-1 pt-0.5">
-              <button
-                type="button"
-                onClick={() => handleExportSTL('assembly')}
-                className="py-1 px-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] text-center transition-colors"
-              >
-                STL Conjunto
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportSTL('rack')}
-                className="py-1 px-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] text-center transition-colors"
-              >
-                STL Cremallera
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportSTL('pinion')}
-                className="py-1 px-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[10px] text-center transition-colors"
-              >
-                STL Piñón
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Fila de 3 botones de exportación estándar */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleExportSTL('default')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>STL</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleExport3MF('default')}
-                className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>3MF</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleExportSTEP('default')}
-                disabled={exportStatus.isExporting}
-                className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold text-xs shadow-xs transition-colors"
-              >
-                {exportStatus.isExporting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
-                ) : (
-                  <Download className="w-3.5 h-3.5" />
-                )}
-                <span>STEP</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleExportSTEP('default')}
-              disabled={exportStatus.isExporting}
-              className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2"
-            >
-              {exportStatus.isExporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Generando STEP con OpenCASCADE...</span>
-                </>
-              ) : (
-                <span>Exportar STEP (ISO 10303)</span>
-              )}
-            </button>
-          </>
-        )}
+        {/* Fila 2: Descargar Conjunto Completo */}
+        <button
+          type="button"
+          onClick={() => handleExportSTEP('assembly')}
+          disabled={exportStatus.isExporting}
+          className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] border border-slate-300 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            isRack
+              ? 'Descargar conjunto ensamblado completo (Cremallera + Piñón)'
+              : 'Descargar conjunto ensamblado completo (Engranaje 1 + Engranaje 2 acoplados)'
+          }
+        >
+          <Layers className="w-3.5 h-3.5 text-orange-600" />
+          <span>Descargar Conjunto</span>
+        </button>
       </div>
     </aside>
   )

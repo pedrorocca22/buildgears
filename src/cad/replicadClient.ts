@@ -54,10 +54,14 @@ export function exportGearToSTEP(
     w.addEventListener('message', handleMessage)
 
     let defaultName = `engranaje_${params.gearType}_m${params.module}_z${params.teeth}.step`
-    if (params.gearType === 'rack') {
-      if (exportTarget === 'assembly') {
+    if (exportTarget === 'assembly') {
+      if (params.gearType === 'rack') {
         defaultName = `conjunto_cremallera_pinion_m${params.module}_zp${params.rackPinionTeeth || 20}.step`
-      } else if (exportTarget === 'pinion') {
+      } else {
+        defaultName = `conjunto_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${params.rackPinionTeeth || 24}.step`
+      }
+    } else if (params.gearType === 'rack') {
+      if (exportTarget === 'pinion') {
         defaultName = `pinion_motriz_m${params.module}_z${params.rackPinionTeeth || 20}.step`
       } else {
         defaultName = `cremallera_${params.rackToothType || 'recta'}_m${params.module}_L${params.rackLength || 160}.step`

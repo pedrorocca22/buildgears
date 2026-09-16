@@ -384,9 +384,33 @@ self.onmessage = async (e: MessageEvent) => {
         self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
         stepBlob = solid.blobSTEP()
       } else {
-        const solid = buildCylindricalGearSolid(gearParams)
-        self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
-        stepBlob = solid.blobSTEP()
+        if (exportTarget === 'assembly') {
+          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modelando engranaje 1...' })
+          const solid1 = buildCylindricalGearSolid(gearParams)
+
+          self.postMessage({ type: 'PROGRESS', progress: 78, message: 'Modelando engranaje 2 conjugado...' })
+          const z2 = gearParams.rackPinionTeeth || 24
+          const pairDims = calculateDimensions(gearParams, z2)
+          const centerDist = pairDims.centerDistance || (gearParams.module * (gearParams.teeth + z2) / 2)
+          const gear2Params: GearParameters = {
+            ...gearParams,
+            gearType: (gearParams.gearType === 'internal' ? 'spur' : gearParams.gearType) as any,
+            teeth: z2,
+            helixHand: (gearParams.helixHand === 'right' ? 'left' : 'right') as any,
+            bodyStyle: 'solid',
+            boreDiameter: gearParams.boreDiameter > 0 ? Math.min(gearParams.boreDiameter, 14) : 0,
+            hasKeyway: false,
+          }
+          const solid2 = buildCylindricalGearSolid(gear2Params).translate([centerDist, 0, 0])
+
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Ensamblando conjunto multi-cuerpo STEP...' })
+          const assemblyCompound = makeCompound([solid1, solid2])
+          stepBlob = assemblyCompound.blobSTEP()
+        } else {
+          const solid = buildCylindricalGearSolid(gearParams)
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
+          stepBlob = solid.blobSTEP()
+        }
       }
 
       self.postMessage({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { runExport } from '../cad/exportService'
 import {
@@ -11,6 +11,8 @@ import {
   Loader2,
   X,
   ExternalLink,
+  Layers,
+  Cog,
 } from 'lucide-react'
 
 export const ExportModal: React.FC = () => {
@@ -19,26 +21,43 @@ export const ExportModal: React.FC = () => {
   const setExportStatus = useGearStore((s) => s.setExportStatus)
   const closeExportModal = useGearStore((s) => s.closeExportModal)
 
+  const isRack = params.gearType === 'rack'
+
+  const [selectedFormat, setSelectedFormat] = useState<'step' | 'stl' | '3mf'>('step')
+  const [selectedTarget, setSelectedTarget] = useState<'default' | 'assembly' | 'rack' | 'pinion'>('default')
   const [selectedAmount, setSelectedAmount] = useState<number | 'custom'>(5)
   const [customAmount, setCustomAmount] = useState<string>('15')
   const [hasDonated, setHasDonated] = useState<boolean>(false)
+
+  // Sincronizar formato y target inicial cuando se abre el modal
+  useEffect(() => {
+    if (exportStatus.pendingFormat) {
+      setSelectedFormat(exportStatus.pendingFormat)
+    }
+  }, [exportStatus.pendingFormat, exportStatus.isModalOpen])
+
+  useEffect(() => {
+    if (exportStatus.pendingTarget) {
+      setSelectedTarget(exportStatus.pendingTarget)
+    }
+  }, [exportStatus.pendingTarget, exportStatus.isModalOpen])
 
   if (!exportStatus.isModalOpen && !exportStatus.isExporting && exportStatus.progress !== 100 && !exportStatus.error) {
     return null
   }
 
-  const format = exportStatus.pendingFormat || 'step'
-  const target = exportStatus.pendingTarget || 'default'
-
-  const formatLabels: Record<string, string> = {
-    step: 'STEP (ISO 10303 - B-Rep)',
-    stl: 'STL (Malla 3D)',
-    '3mf': '3MF (Impresión 3D)',
+  const gearTypeNames: Record<string, string> = {
+    spur: 'Cilíndrico Recto',
+    helical: 'Helicoidal',
+    herringbone: 'Espiga (Doble Hélice)',
+    internal: 'Corona Interior',
+    rack: 'Cremallera',
+    bevel: 'Cónico Recto',
   }
 
   const targetLabels: Record<string, string> = {
-    default: params.gearType === 'rack' ? 'Barra de Cremallera' : `Engranaje ${params.gearType}`,
-    assembly: 'Conjunto Cremallera + Piñón',
+    default: isRack ? 'Barra de Cremallera' : `Engranaje ${gearTypeNames[params.gearType] || params.gearType}`,
+    assembly: isRack ? 'Conjunto Cremallera + Piñón' : `Conjunto Ensamblado (Pareja z1 + z2)`,
     rack: 'Barra de Cremallera',
     pinion: 'Piñón Motriz Conjugado',
   }
@@ -61,8 +80,8 @@ export const ExportModal: React.FC = () => {
 
       await runExport({
         params,
-        format,
-        target,
+        format: selectedFormat,
+        target: selectedTarget,
         onProgress: (progress, message) => {
           setExportStatus({ progress, message })
         },
@@ -91,7 +110,7 @@ export const ExportModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200/80 rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-7 relative overflow-hidden flex flex-col">
+      <div className="bg-white border border-slate-200/80 rounded-3xl w-full max-w-lg shadow-2xl p-6 sm:p-7 relative overflow-hidden flex flex-col max-h-[95vh] overflow-y-auto">
         {/* Barra superior indicadora de progreso */}
         {exportStatus.isExporting && (
           <div
@@ -122,7 +141,7 @@ export const ExportModal: React.FC = () => {
         </button>
 
         {/* Encabezado: Título y Formato */}
-        <div className="flex items-start gap-3.5 mb-4 pr-6">
+        <div className="flex items-start gap-3.5 mb-3.5 pr-6">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 shrink-0">
             {exportStatus.progress === 100 ? (
               <CheckCircle2 className="w-6 h-6" />
@@ -142,15 +161,144 @@ export const ExportModal: React.FC = () => {
             </h3>
             <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
               <span className="px-2 py-0.5 rounded-md bg-orange-100 text-orange-800 font-bold uppercase text-[10px]">
-                {formatLabels[format] || format.toUpperCase()}
+                {selectedFormat.toUpperCase()}
               </span>
-              <span>{targetLabels[target] || targetLabels.default}</span>
+              <span>{targetLabels[selectedTarget] || targetLabels.default}</span>
             </div>
           </div>
         </div>
 
-        {/* BLOQUE DE APOYO / BUY ME A COFFEE (Visible siempre para leer y aportar) */}
-        <div className="bg-[#fffdfa] border border-amber-200/70 rounded-2xl p-4 sm:p-4.5 mb-4 shadow-2xs">
+        {/* Selector interactivo de Formato y Pieza (Solo visible antes de iniciar descarga) */}
+        {!exportStatus.isExporting && exportStatus.progress !== 100 && (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 mb-3.5 space-y-2.5">
+            {/* Formato */}
+            <div>
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                <span>Formato de descarga:</span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  {selectedFormat === 'step'
+                    ? 'Sólido analítico B-Rep (OpenCASCADE)'
+                    : selectedFormat === 'stl'
+                    ? 'Malla poligonal 3D (Manifold-3D)'
+                    : 'Formato de impresión 3MF moderno'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-xl border border-slate-200/70">
+                <button
+                  type="button"
+                  onClick={() => setSelectedFormat('step')}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedFormat === 'step'
+                      ? 'bg-orange-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  STEP (.step)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFormat('stl')}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedFormat === 'stl'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  STL (.stl)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFormat('3mf')}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
+                    selectedFormat === '3mf'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  3MF (.3mf)
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido / Pieza */}
+            <div>
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                <span>Pieza a exportar:</span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  {selectedTarget === 'assembly' ? 'Mecanismo completo' : 'Pieza única'}
+                </span>
+              </div>
+              {isRack ? (
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-xl border border-slate-200/70">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTarget('assembly')}
+                    className={`py-1.5 px-1 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      selectedTarget === 'assembly'
+                        ? 'bg-orange-50 text-orange-700 font-extrabold shadow-2xs border border-orange-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Layers className="w-3 h-3 text-orange-500" />
+                    <span>Conjunto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTarget('rack')}
+                    className={`py-1.5 px-1 text-[11px] font-bold rounded-lg transition-all ${
+                      selectedTarget === 'rack' || selectedTarget === 'default'
+                        ? 'bg-orange-50 text-orange-700 font-extrabold shadow-2xs border border-orange-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Cremallera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTarget('pinion')}
+                    className={`py-1.5 px-1 text-[11px] font-bold rounded-lg transition-all ${
+                      selectedTarget === 'pinion'
+                        ? 'bg-orange-50 text-orange-700 font-extrabold shadow-2xs border border-orange-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Piñón
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-xl border border-slate-200/70">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTarget('assembly')}
+                    className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      selectedTarget === 'assembly'
+                        ? 'bg-orange-50 text-orange-700 font-extrabold shadow-2xs border border-orange-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5 text-orange-500" />
+                    <span>Conjunto Ensamblado</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTarget('default')}
+                    className={`py-1.5 px-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                      selectedTarget === 'default'
+                        ? 'bg-orange-50 text-orange-700 font-extrabold shadow-2xs border border-orange-300'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Cog className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Engranaje Principal</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* BLOQUE DE APOYO / BUY ME A COFFEE */}
+        <div className="bg-[#fffdfa] border border-amber-200/70 rounded-2xl p-4 mb-4 shadow-2xs">
           <p className="text-xs text-slate-600 leading-relaxed mb-3">
             BuildGears es <strong className="text-slate-900 font-bold">100% gratuito y de código abierto</strong>. Si esta herramienta te ha ahorrado tiempo de ingeniería CAD o te sirve para tu proyecto, considera invitar a un café para apoyar el desarrollo y mantener los servidores activos.
           </p>
@@ -267,7 +415,7 @@ export const ExportModal: React.FC = () => {
               ¡Archivo descargado con éxito!
             </h4>
             <p className="text-xs text-emerald-700 leading-relaxed">
-              El archivo {format.toUpperCase()} ya está en tu carpeta de descargas. Si BuildGears te ha ahorrado tiempo, ¡puedes invitar a un café arriba antes de salir!
+              El archivo {selectedFormat.toUpperCase()} ya está en tu carpeta de descargas. Si BuildGears te ha ahorrado tiempo, ¡puedes invitar a un café arriba antes de salir!
             </p>
             <button
               type="button"
@@ -308,7 +456,9 @@ export const ExportModal: React.FC = () => {
               className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 hover:shadow-lg active:scale-[0.99]"
             >
               <Download className="w-4 h-4 text-orange-400" />
-              <span>Descargar archivo {format.toUpperCase()} ahora (Gratis)</span>
+              <span>
+                Descargar {selectedFormat.toUpperCase()} ({selectedTarget === 'assembly' ? 'Conjunto' : isRack && selectedTarget === 'pinion' ? 'Piñón' : isRack ? 'Cremallera' : 'Pieza'}) ahora (Gratis)
+              </span>
             </button>
 
             <p className="text-[10px] text-center text-slate-400">

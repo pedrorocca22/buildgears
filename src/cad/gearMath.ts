@@ -115,7 +115,9 @@ export function calculateDimensions(
     centerDistance = pinionOperatingY
     gearRatio = pTeeth
   } else if (teeth2 && teeth2 > 0) {
-    centerDistance = (mt * (z + teeth2)) / 2
+    centerDistance = gearType === 'internal'
+      ? Math.abs((mt * (z - teeth2)) / 2)
+      : (mt * (z + teeth2)) / 2
     gearRatio = teeth2 / z
   }
 
