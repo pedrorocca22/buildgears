@@ -1,6 +1,5 @@
 import React from 'react'
 import { useGearStore } from '../store/useGearStore'
-import { Cog } from 'lucide-react'
 
 const gearLabelMap: Record<string, string> = {
   spur: 'Cilíndrico Recto',
@@ -18,14 +17,14 @@ export const Header: React.FC = () => {
 
   return (
     <header className="h-13 bg-white border-b border-slate-200 px-5 flex items-center justify-between select-none z-20 shrink-0">
-      {/* Logo y Switcher de Modo (Crear / Ensamblar) */}
+      {/* Logo estilo SKADIS STUDIO: [BUILD] GEARS y Switcher de Modo */}
       <div className="flex items-center gap-5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
-            <Cog className="w-5 h-5 animate-[spin_16s_linear_infinite]" />
-          </div>
-          <span className="font-black text-sm tracking-tight text-slate-900 uppercase">
-            BUILDGEARS
+        <div className="flex items-center gap-1.5 select-none">
+          <span className="bg-[#ff5500] text-white font-black text-xs sm:text-sm tracking-wide px-2.5 py-1 rounded-lg uppercase shadow-2xs leading-none">
+            BUILD
+          </span>
+          <span className="font-black text-xs sm:text-sm tracking-wide text-[#0b1329] uppercase leading-none">
+            GEARS
           </span>
         </div>
 

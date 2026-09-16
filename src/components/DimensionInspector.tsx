@@ -1,7 +1,6 @@
 import React from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { calculateDimensions } from '../cad/gearMath'
-import { Compass, Gauge, CheckCircle2 } from 'lucide-react'
 
 export const DimensionInspector: React.FC = () => {
   const params = useGearStore((s) => s.params)
@@ -11,8 +10,7 @@ export const DimensionInspector: React.FC = () => {
   return (
     <div className="bg-white border-t border-slate-200 px-5 py-2.5 text-xs shrink-0 select-none">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[10px]">
-          <Compass className="w-3.5 h-3.5 text-orange-600" />
+        <div className="text-slate-700 font-bold uppercase tracking-wider text-[10px]">
           <span>
             Metrología & Dimensiones Calculadas · Perfil:{' '}
             <span className="text-orange-600">
@@ -45,12 +43,9 @@ export const DimensionInspector: React.FC = () => {
               Riesgo socavado en piñón (zp={params.rackPinionTeeth || 20} &lt; {dims.undercutLimitZ})
             </span>
           ) : (
-            <>
-              <CheckCircle2 className="w-3 h-3" />
-              <span>
-                {dims.axialThrustRatio === 0 ? 'Empuje axial nulo (Fa = 0)' : 'Marcha helicoidal progresiva'}
-              </span>
-            </>
+            <span>
+              {dims.axialThrustRatio === 0 ? 'Empuje axial nulo (Fa = 0)' : 'Marcha helicoidal progresiva'}
+            </span>
           )}
         </div>
       </div>
@@ -94,9 +89,8 @@ export const DimensionInspector: React.FC = () => {
             </div>
 
             <div className="bg-orange-50/80 p-2 rounded-lg border border-orange-200">
-              <div className="text-orange-700 text-[10px] flex items-center justify-between font-semibold">
+              <div className="text-orange-700 text-[10px] font-semibold">
                 <span>Avance / Vuelta</span>
-                <Gauge className="w-3 h-3" />
               </div>
               <div className="text-xs font-mono font-extrabold text-orange-900 mt-0.5">
                 {dims.feedPerRev} <span className="text-[10px] font-normal text-orange-700">mm</span>
@@ -156,9 +150,8 @@ export const DimensionInspector: React.FC = () => {
 
             {meshingPair.enabled ? (
               <div className="bg-orange-50/70 p-2 rounded-lg border border-orange-200">
-                <div className="text-orange-700 text-[10px] flex items-center justify-between font-semibold">
+                <div className="text-orange-700 text-[10px] font-semibold">
                   <span>Distancia Centros (a)</span>
-                  <Gauge className="w-3 h-3" />
                 </div>
                 <div className="text-xs font-mono font-bold text-orange-900 mt-0.5">
                   {dims.centerDistance} <span className="text-[10px] font-normal">mm</span>

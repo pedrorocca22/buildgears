@@ -5,7 +5,6 @@ import { useGearStore } from '../store/useGearStore'
 import type { FlatColor } from '../store/useGearStore'
 import { buildGearThreeGeometry } from '../cad/manifoldEngine'
 import { calculateDimensions, getConjugatePinionParams } from '../cad/gearMath'
-import { RotateCw, Activity, Layers, Palette } from 'lucide-react'
 
 export const Viewport3D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -526,9 +525,8 @@ export const Viewport3D: React.FC = () => {
       </div>
 
       {/* Selector de Colores Planos (Flat Colors) */}
-      <div className="absolute top-3.5 left-6 flex items-center bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-full border border-slate-200/80 shadow-sm gap-2 text-xs">
-        <Palette className="w-3.5 h-3.5 text-slate-400" />
-        <span className="text-[11px] font-medium text-slate-500 mr-0.5">Color plano:</span>
+      <div className="absolute top-3.5 left-6 flex items-center bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-200/80 shadow-sm gap-2 text-xs">
+        <span className="text-[11px] font-medium text-slate-500 mr-0.5">Color:</span>
         <div className="flex items-center gap-1.5">
           {colorsList.map((c) => (
             <button
@@ -549,7 +547,6 @@ export const Viewport3D: React.FC = () => {
       {/* Control flotante para corte transversal */}
       {viewSettings.sectionCut && (
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-orange-300 shadow-xl">
-          <Layers className="w-4 h-4 text-orange-500" />
           <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Plano de Sección</span>
           <input
             type="range"
@@ -569,11 +566,10 @@ export const Viewport3D: React.FC = () => {
         <div className="absolute bottom-12 right-6 flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg">
           <button
             onClick={() => setMeshingPair('animate', !meshingPair.animate)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
               meshingPair.animate ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'bg-slate-100 text-slate-500'
             }`}
           >
-            <RotateCw className={`w-3.5 h-3.5 ${meshingPair.animate ? 'animate-spin' : ''}`} />
             <span>{meshingPair.animate ? 'Girando' : 'Pausado'}</span>
           </button>
           <div className="flex items-center gap-1.5">
@@ -596,7 +592,7 @@ export const Viewport3D: React.FC = () => {
       <div className="absolute bottom-2 left-6 right-6 flex items-center justify-between text-[11px] text-slate-400 bg-white/60 backdrop-blur-xs py-1 px-3 rounded-lg border border-slate-200/50">
         <span>Creación: el visor muestra una sola pieza centrada. Guarda una variante o expórtala en formato STEP.</span>
         <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500">
-          <Activity className={`w-3 h-3 ${isGenerating ? 'text-orange-500 animate-spin' : 'text-emerald-500'}`} />
+          <span className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
           <span>{isGenerating ? 'Calculando CSG...' : 'Manifold-3D WASM'}</span>
           <span>·</span>
           <span>{trianglesCount.toLocaleString()} tris</span>

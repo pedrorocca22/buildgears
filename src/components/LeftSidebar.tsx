@@ -1,7 +1,6 @@
 import React from 'react'
 import { useGearStore } from '../store/useGearStore'
 import type { GearType } from '../cad/types'
-import { Search, Disc } from 'lucide-react'
 
 export const LeftSidebar: React.FC = () => {
   const currentType = useGearStore((s) => s.params.gearType)
@@ -50,15 +49,11 @@ export const LeftSidebar: React.FC = () => {
 
       {/* Sección: MI BIBLIOTECA */}
       <div className="p-3 pt-1 flex-1">
-        <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-          <span>Mi biblioteca</span>
-          <Search className="w-3.5 h-3.5 text-slate-400" />
+        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+          Mi biblioteca
         </div>
 
         <div className="bg-white border border-dashed border-slate-200 rounded-xl p-4 text-center">
-          <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-400">
-            <Disc className="w-3.5 h-3.5" />
-          </div>
           <p className="text-[11px] font-semibold text-slate-600">Sin proyectos precargados</p>
           <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
             Tus diseños guardados se sincronizarán aquí.

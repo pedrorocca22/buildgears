@@ -3,16 +3,6 @@ import { useGearStore } from '../store/useGearStore'
 import { getDIN6885Keyway } from '../cad/din6885'
 import { getDIN912Screw } from '../cad/din912'
 import { calculateDimensions } from '../cad/gearMath'
-import {
-  Cog,
-  RotateCcw,
-  Download,
-  HelpCircle,
-  Gauge,
-  Layers,
-  Sparkles,
-  AlertTriangle,
-} from 'lucide-react'
 
 export const RightSidebar: React.FC = () => {
   const params = useGearStore((s) => s.params)
@@ -59,26 +49,21 @@ export const RightSidebar: React.FC = () => {
     <aside className="w-84 bg-[#fbfcfd] border-l border-slate-200 flex flex-col h-full select-none shrink-0 text-slate-800">
       {/* Cabecera del objeto paramétrico estilo CAD Studio */}
       <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
-            <Cog className="w-4 h-4" />
-          </div>
-          <div>
-            <h2 className="text-xs font-bold text-slate-900 leading-tight">
-              {gearTitleMap[params.gearType] || 'Engranaje'}
-            </h2>
-            <p className="text-[10px] text-slate-400">
-              {isRack ? 'Mecanismo Cinemático Acoplado' : 'Objeto paramétrico para CAD / CNC'}
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xs font-bold text-slate-900 leading-tight">
+            {gearTitleMap[params.gearType] || 'Engranaje'}
+          </h2>
+          <p className="text-[10px] text-slate-400">
+            {isRack ? 'Mecanismo Cinemático Acoplado' : 'Objeto paramétrico para CAD / CNC'}
+          </p>
         </div>
 
         <button
           onClick={resetCurrentGear}
           title="Restablecer valores por defecto"
-          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+          className="px-2 py-1 rounded-md text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          Restablecer
         </button>
       </div>
 
@@ -88,10 +73,7 @@ export const RightSidebar: React.FC = () => {
         {isRack && (
           <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-orange-600" />
-                <span className="text-[11px] font-bold text-slate-800">Visualización 3D en Pantalla</span>
-              </div>
+              <span className="text-[11px] font-bold text-slate-800">Visualización 3D en Pantalla</span>
               <span className="text-[9.5px] text-slate-400 font-mono">
                 {params.rackViewFocus === 'pinion' ? 'Solo Piñón' : params.rackViewFocus === 'rack' ? 'Solo Cremallera' : 'Conjunto'}
               </span>
@@ -249,8 +231,7 @@ export const RightSidebar: React.FC = () => {
               <span>8.0 mm</span>
             </div>
             {isRack && (
-              <div className="mt-1.5 p-2 rounded-lg bg-orange-50/70 border border-orange-200/80 text-[9.5px] text-orange-950 flex items-start gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-orange-600 shrink-0 mt-0.5" />
+              <div className="mt-1.5 p-2 rounded-lg bg-orange-50/70 border border-orange-200/80 text-[9.5px] text-orange-950">
                 <span>
                   Al cambiar el módulo, el paso de la cremallera (<b>{dims.circularPitch} mm</b>) y el diámetro del piñón (<b>{(dims.pinionPitchRadius ? dims.pinionPitchRadius * 2 : 0).toFixed(1)} mm</b>) se adaptan en tiempo real.
                 </span>
@@ -473,7 +454,6 @@ export const RightSidebar: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
               <span>2 · Barra de Cremallera</span>
-              <HelpCircle className="w-3 h-3 text-slate-400" />
             </div>
 
             {/* Longitud de Barra (L) */}
@@ -767,9 +747,8 @@ export const RightSidebar: React.FC = () => {
                   {/* Alerta de socavado en piñón si zp < z_min */}
                   {dims.pinionUndercutWarning && (
                     <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[10px] space-y-1.5">
-                      <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Riesgo de socavado en raíz del piñón (zp &lt; {dims.undercutLimitZ})</span>
+                      <div className="font-bold text-amber-800">
+                        Riesgo de socavado en raíz del piñón (zp &lt; {dims.undercutLimitZ})
                       </div>
                       <div className="text-slate-600 text-[9.5px]">
                         Con {params.rackPinionTeeth || 20} dientes se produce entalladura si no se aplica corrección x_p.
@@ -1430,7 +1409,6 @@ export const RightSidebar: React.FC = () => {
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
             <span>{isRack ? '4 · Cinemática & Montaje del Conjunto' : '4 · Pareja Cinemática'}</span>
-            <Gauge className="w-3.5 h-3.5 text-orange-500" />
           </div>
 
           {/* En cremallera: Tarjeta destacada de cotas de montaje y cinemática */}
@@ -1534,22 +1512,20 @@ export const RightSidebar: React.FC = () => {
             type="button"
             onClick={() => handleExportSTEP(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
             disabled={exportStatus.isExporting}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
             title="Descargar modelo CAD analítico STEP (ISO 10303 - B-Rep)"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Descargar STEP</span>
+            Descargar STEP
           </button>
 
           <button
             type="button"
             onClick={() => handleExportSTL(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
             disabled={exportStatus.isExporting}
-            className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
             title="Descargar archivo de malla 3D STL para impresión"
           >
-            <Download className="w-3.5 h-3.5 text-orange-400" />
-            <span>Descargar STL</span>
+            Descargar STL
           </button>
         </div>
 
@@ -1558,15 +1534,14 @@ export const RightSidebar: React.FC = () => {
           type="button"
           onClick={() => handleExportSTEP('assembly')}
           disabled={exportStatus.isExporting}
-          className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] border border-slate-300 text-slate-800 font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] border border-slate-300 text-slate-800 font-bold text-xs shadow-2xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
           title={
             isRack
               ? 'Descargar conjunto ensamblado completo (Cremallera + Piñón)'
               : 'Descargar conjunto ensamblado completo (Engranaje 1 + Engranaje 2 acoplados)'
           }
         >
-          <Layers className="w-3.5 h-3.5 text-orange-600" />
-          <span>Descargar Conjunto</span>
+          Descargar Conjunto
         </button>
       </div>
     </aside>
