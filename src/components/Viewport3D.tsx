@@ -5,6 +5,7 @@ import { useGearStore } from '../store/useGearStore'
 import type { FlatColor } from '../store/useGearStore'
 import { buildGearThreeGeometry } from '../cad/manifoldEngine'
 import { calculateDimensions, getConjugatePinionParams } from '../cad/gearMath'
+import { buildFloorDimensions } from '../cad/dimensionRenderer'
 
 export const Viewport3D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -16,6 +17,7 @@ export const Viewport3D: React.FC = () => {
   const pairMeshRef = useRef<THREE.Mesh | null>(null)
   const centerLineRef = useRef<THREE.Line | null>(null)
   const clippingPlaneRef = useRef<THREE.Plane | null>(null)
+  const dimensionsGroupRef = useRef<THREE.Group | null>(null)
 
   const [trianglesCount, setTrianglesCount] = useState<number>(0)
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
@@ -114,6 +116,12 @@ export const Viewport3D: React.FC = () => {
     grid.position.z = -15
     grid.name = 'engineering-grid'
     scene.add(grid)
+
+    // Grupo para cotas y medidas dinámicas en el piso
+    const dimGroup = new THREE.Group()
+    dimGroup.name = 'floor-dimensions'
+    scene.add(dimGroup)
+    dimensionsGroupRef.current = dimGroup
 
     // Bucle de renderizado y animación
     let animationFrameId: number
@@ -409,6 +417,55 @@ export const Viewport3D: React.FC = () => {
     }
   }, [meshingPair.enabled, meshingPair.teeth2, meshingPair.showCenterLine, params])
 
+  // Cotas y medidas dinámicas proyectadas en el piso (3D Floor Dimensions)
+  useEffect(() => {
+    if (!sceneRef.current || !dimensionsGroupRef.current) return
+    const dimGroup = dimensionsGroupRef.current
+
+    // Limpiar cotas y sprites previos
+    while (dimGroup.children.length > 0) {
+      const child = dimGroup.children[0]
+      dimGroup.remove(child)
+      child.traverse((node: any) => {
+        if (node.geometry) node.geometry.dispose()
+        if (node.material) {
+          if (Array.isArray(node.material)) {
+            node.material.forEach((m: any) => {
+              if (m.map) m.map.dispose()
+              m.dispose()
+            })
+          } else {
+            if (node.material.map) node.material.map.dispose()
+            node.material.dispose()
+          }
+        }
+      })
+    }
+
+    if (!viewSettings.showDimensions) return
+
+    const calculatedDims = calculateDimensions(
+      params,
+      meshingPair.enabled ? meshingPair.teeth2 : undefined
+    )
+
+    const floorDims = buildFloorDimensions(params, meshingPair, calculatedDims)
+    dimGroup.add(floorDims)
+
+    // Ajustar posición del suelo de la cuadrícula al mismo nivel que las cotas
+    const fw = params.faceWidth || 20
+    const floorZ = -((fw / 2) + 3)
+    const grid = sceneRef.current.getObjectByName('engineering-grid')
+    if (grid) {
+      grid.position.z = floorZ
+    }
+  }, [
+    params,
+    meshingPair.enabled,
+    meshingPair.teeth2,
+    viewSettings.showDimensions,
+  ])
+
   // Controles de cámara de la barra superior
   const setCameraView = (view: 'iso' | 'front' | 'top' | 'left' | 'right') => {
     if (!cameraRef.current || !controlsRef.current) return
@@ -459,8 +516,22 @@ export const Viewport3D: React.FC = () => {
       {/* Contenedor WebGL */}
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Píldoras de Cámara estilo SKÅDIS STUDIO */}
+      {/* Píldoras de Cámara y Cotas Técnicas */}
       <div className="absolute top-3.5 right-6 flex items-center bg-white/90 backdrop-blur-md px-1.5 py-1 rounded-full border border-slate-200/80 shadow-sm gap-0.5 text-xs">
+        <button
+          onClick={() => setViewSetting('showDimensions', !viewSettings.showDimensions)}
+          className={`px-2.5 py-1 rounded-full font-semibold transition-all ${
+            viewSettings.showDimensions
+              ? 'bg-[#ea580c] text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+          title="Mostrar u ocultar cotas de medidas en el piso"
+        >
+          Cotas 3D
+        </button>
+
+        <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
+
         <button
           onClick={resetCameraCenter}
           className="px-2.5 py-1 rounded-full font-medium text-slate-600 hover:text-slate-900 transition-colors"
