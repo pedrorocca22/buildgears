@@ -11,10 +11,35 @@ function getWorker(): Worker {
   return worker
 }
 
+export interface StepStageTimings {
+  kernelMs: number
+  curvesMs: number
+  buildMs: number
+  encodeMs: number
+  totalMs: number
+  hbExtrudeMs?: number
+  hbMirrorMs?: number
+  hbJoinMs?: number
+}
+
+export interface StepQualityInfo {
+  faces: number
+  solids: number
+  volumeMm3: number
+  areaMm2: number
+  bboxMm: [[number, number, number], [number, number, number]] | null
+  meshTris: number | null
+  meshMs: number
+  ok: boolean
+  warnings: string[]
+}
+
 export interface StepExportResult {
   blob: Blob
   fileName: string
   sizeBytes: number
+  stages?: StepStageTimings
+  quality?: StepQualityInfo | null
 }
 
 export function resetWorker() {
@@ -39,32 +64,44 @@ export function exportGearToSTEP(
         onProgress?.(data.progress, data.message)
       } else if (data.type === 'STEP_READY') {
         w.removeEventListener('message', handleMessage)
+        if (data.stages) {
+          // Tabla copiable en consola para perfilar la exportación STEP
+          console.table({ export: data.fileName, sizeBytes: data.sizeBytes, ...data.stages })
+        }
+        if (data.quality) {
+          console.table({ quality: data.fileName, ...data.quality })
+          if (data.quality.warnings?.length > 0) {
+            console.warn('[STEP QC]', data.quality.warnings)
+          }
+        }
         resolve({
           blob: data.blob,
           fileName: data.fileName,
           sizeBytes: data.sizeBytes,
+          stages: data.stages,
+          quality: data.quality ?? null,
         })
       } else if (data.type === 'ERROR') {
         w.removeEventListener('message', handleMessage)
         resetWorker()
-        reject(new Error(data.error || 'Error desconocido al exportar STEP'))
+        reject(new Error(data.error || 'Unknown error during STEP export'))
       }
     }
 
     w.addEventListener('message', handleMessage)
 
-    let defaultName = `engranaje_${params.gearType}_m${params.module}_z${params.teeth}.step`
+    let defaultName = `gear_${params.gearType}_m${params.module}_z${params.teeth}.step`
     if (exportTarget === 'assembly') {
       if (params.gearType === 'rack') {
-        defaultName = `conjunto_cremallera_pinion_m${params.module}_zp${params.rackPinionTeeth || 20}.step`
+        defaultName = `assembly_rack_pinion_m${params.module}_zp${params.rackPinionTeeth || 20}.step`
       } else {
-        defaultName = `conjunto_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${params.rackPinionTeeth || 24}.step`
+        defaultName = `assembly_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${params.rackPinionTeeth || 24}.step`
       }
     } else if (params.gearType === 'rack') {
       if (exportTarget === 'pinion') {
-        defaultName = `pinion_motriz_m${params.module}_z${params.rackPinionTeeth || 20}.step`
+        defaultName = `drive_pinion_m${params.module}_z${params.rackPinionTeeth || 20}.step`
       } else {
-        defaultName = `cremallera_${params.rackToothType || 'recta'}_m${params.module}_L${params.rackLength || 160}.step`
+        defaultName = `gear_rack_${params.rackToothType || 'spur'}_m${params.module}_L${params.rackLength || 160}.step`
       }
     }
 

@@ -12,25 +12,25 @@ export const DimensionInspector: React.FC = () => {
       <div className="flex items-center justify-between mb-2">
         <div className="text-slate-700 font-bold uppercase tracking-wider text-[10px]">
           <span>
-            Metrología & Dimensiones Calculadas · Perfil:{' '}
+            Metrology & Calculated Dimensions · Profile:{' '}
             <span className="text-orange-600">
               {params.toothProfileType === 'stub'
-                ? 'Diente Corto (Stub AGMA)'
+                ? 'Stub Tooth (AGMA)'
                 : params.toothProfileType === 'deep'
-                ? 'Diente Alto (HCR)'
+                ? 'High Contact Ratio (HCR)'
                 : params.toothProfileType === 'cycloidal'
-                ? 'Cicloidal (NIHS)'
-                : 'ISO 53 Estándar'}
+                ? 'Cycloidal (NIHS)'
+                : 'ISO 53 Standard'}
             </span>
             {params.gearType === 'rack' && (
               <span className="ml-2 text-slate-400">
-                · Mecanismo:{' '}
+                · Mechanism:{' '}
                 <span className="text-slate-700 font-bold">
                   {params.rackToothType === 'herringbone'
-                    ? 'Piñón & Cremallera Espiga (Chevron)'
+                    ? 'Herringbone (Chevron) Rack & Pinion'
                     : params.rackToothType === 'helical'
-                    ? 'Piñón & Cremallera Helicoidal'
-                    : 'Piñón & Cremallera Recta'}
+                    ? 'Helical Rack & Pinion'
+                    : 'Spur Rack & Pinion'}
                 </span>
               </span>
             )}
@@ -40,11 +40,11 @@ export const DimensionInspector: React.FC = () => {
           {params.gearType === 'rack' && dims.pinionUndercutWarning ? (
             <span className="text-amber-600 font-bold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Riesgo socavado en piñón (zp={params.rackPinionTeeth || 20} &lt; {dims.undercutLimitZ})
+              Pinion undercut risk (zp={params.rackPinionTeeth || 20} &lt; {dims.undercutLimitZ})
             </span>
           ) : (
             <span>
-              {dims.axialThrustRatio === 0 ? 'Empuje axial nulo (Fa = 0)' : 'Marcha helicoidal progresiva'}
+              {dims.axialThrustRatio === 0 ? 'Zero axial thrust (Fa = 0)' : 'Progressive helical meshing'}
             </span>
           )}
         </div>
@@ -54,35 +54,35 @@ export const DimensionInspector: React.FC = () => {
         {params.gearType === 'rack' ? (
           <>
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Longitud Barra (L)</div>
+              <div className="text-slate-400 text-[10px]">Bar Length (L)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {params.rackLength || 160} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Cota Montaje (H_mont)</div>
-              <div className="text-xs font-mono font-bold text-slate-900 mt-0.5" title="Distancia desde la base de la cremallera al centro del eje del piñón">
+              <div className="text-slate-400 text-[10px]">Mounting Height (H_mount)</div>
+              <div className="text-xs font-mono font-bold text-slate-900 mt-0.5" title="Distance from rack base to pinion shaft center">
                 {dims.mountingDistance} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Paso Circular (p)</div>
+              <div className="text-slate-400 text-[10px]">Circular Pitch (p)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.circularPitch} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Dientes Cremallera</div>
+              <div className="text-slate-400 text-[10px]">Rack Teeth</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
-                {dims.rackToothCount} <span className="text-[10px] font-normal text-slate-400">uds.</span>
+                {dims.rackToothCount} <span className="text-[10px] font-normal text-slate-400">teeth</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Piñón Motriz (zp / dp)</div>
+              <div className="text-slate-400 text-[10px]">Driving Pinion (zp / dp)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {params.rackPinionTeeth || 20}z · Ø{(dims.pinionPitchRadius ? (dims.pinionPitchRadius * 2).toFixed(1) : '0')} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
@@ -90,7 +90,7 @@ export const DimensionInspector: React.FC = () => {
 
             <div className="bg-orange-50/80 p-2 rounded-lg border border-orange-200">
               <div className="text-orange-700 text-[10px] font-semibold">
-                <span>Avance / Vuelta</span>
+                <span>Lead / Revolution</span>
               </div>
               <div className="text-xs font-mono font-extrabold text-orange-900 mt-0.5">
                 {dims.feedPerRev} <span className="text-[10px] font-normal text-orange-700">mm</span>
@@ -98,7 +98,7 @@ export const DimensionInspector: React.FC = () => {
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Velocidad Lineal</div>
+              <div className="text-slate-400 text-[10px]">Linear Velocity</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.linearVelocity} <span className="text-[10px] font-normal text-slate-400">mm/s</span>
               </div>
@@ -107,42 +107,42 @@ export const DimensionInspector: React.FC = () => {
         ) : (
           <>
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Diámetro Primitivo (d)</div>
+              <div className="text-slate-400 text-[10px]">Pitch Diameter (d)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.pitchDiameter} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Diámetro Exterior (da)</div>
+              <div className="text-slate-400 text-[10px]">Tip Diameter (da)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.tipDiameter} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Diámetro Raíz (df)</div>
+              <div className="text-slate-400 text-[10px]">Root Diameter (df)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.rootDiameter} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Diámetro Base (db)</div>
+              <div className="text-slate-400 text-[10px]">Base Diameter (db)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.baseDiameter} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Paso Circular (p)</div>
+              <div className="text-slate-400 text-[10px]">Circular Pitch (p)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.circularPitch} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
             </div>
 
             <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-              <div className="text-slate-400 text-[10px]">Espesor Diente (s)</div>
+              <div className="text-slate-400 text-[10px]">Tooth Thickness (s)</div>
               <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                 {dims.normalToothThickness} <span className="text-[10px] font-normal text-slate-400">mm</span>
               </div>
@@ -151,15 +151,15 @@ export const DimensionInspector: React.FC = () => {
             {meshingPair.enabled ? (
               <div className="bg-orange-50/70 p-2 rounded-lg border border-orange-200">
                 <div className="text-orange-700 text-[10px] font-semibold">
-                  <span>Distancia Centros (a)</span>
+                  <span>Center Distance (a{(meshingPair.previewDeltaA ?? 0) !== 0 ? ' + preview' : ''})</span>
                 </div>
                 <div className="text-xs font-mono font-bold text-orange-900 mt-0.5">
-                  {dims.centerDistance} <span className="text-[10px] font-normal">mm</span>
+                  {dims.centerDistance != null ? (dims.centerDistance + (meshingPair.previewDeltaA ?? 0)).toFixed(3) : '—'} <span className="text-[10px] font-normal">mm</span>
                 </div>
               </div>
             ) : (
               <div className="bg-[#f8fafc] p-2 rounded-lg border border-slate-200/80">
-                <div className="text-slate-400 text-[10px]">Torsión Hélice (β)</div>
+                <div className="text-slate-400 text-[10px]">Helix Twist (β)</div>
                 <div className="text-xs font-mono font-bold text-slate-900 mt-0.5">
                   {dims.twistAngleDeg}°
                 </div>

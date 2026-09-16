@@ -8,6 +8,12 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  // @ts-expect-error - vitest injects `test` at runtime (types from vitest/config)
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+    testTimeout: 15000,
+  },
   worker: {
     format: 'es',
   },

@@ -14,7 +14,7 @@ export const App: React.FC = () => {
 
       {/* Estructura central en 3 columnas */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Columna Izquierda: Catálogo y Biblioteca de Piezas */}
+        {/* Columna Izquierda: Catálogo de Engranajes */}
         <LeftSidebar />
 
         {/* Columna Central: Visor 3D con colores planos y cotas */}

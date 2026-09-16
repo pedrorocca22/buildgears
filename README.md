@@ -8,6 +8,7 @@
 ![Three.js](https://img.shields.io/badge/Three.js-0.186-black.svg)
 ![OpenCASCADE](https://img.shields.io/badge/OpenCASCADE-Replicad%20WASM-orange.svg)
 ![Manifold3D](https://img.shields.io/badge/Manifold--3D-CSG%20Fast%20WASM-purple.svg)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-rocca022t-ffdd00.svg?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/rocca022t)
 
 ---
 

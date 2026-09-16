@@ -19,8 +19,8 @@ export const Viewport3D: React.FC = () => {
   const clippingPlaneRef = useRef<THREE.Plane | null>(null)
   const dimensionsGroupRef = useRef<THREE.Group | null>(null)
 
-  const [trianglesCount, setTrianglesCount] = useState<number>(0)
-  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [, setTrianglesCount] = useState<number>(0)
+  const [, setIsGenerating] = useState<boolean>(false)
 
   const params = useGearStore((s) => s.params)
   const meshingPair = useGearStore((s) => s.meshingPair)
@@ -174,7 +174,8 @@ export const Viewport3D: React.FC = () => {
           if (pairMeshRef.current) {
             const ratio = storeState.params.teeth / storeState.meshingPair.teeth2
             const phaseOffset = Math.PI / storeState.meshingPair.teeth2
-            pairMeshRef.current.position.set(storeState.meshingPair.teeth2 ? calculateDimensions(storeState.params, storeState.meshingPair.teeth2).centerDistance || 50 : 50, 0, 0)
+            const baseDist = storeState.meshingPair.teeth2 ? calculateDimensions(storeState.params, storeState.meshingPair.teeth2).centerDistance || 50 : 50
+            pairMeshRef.current.position.set(baseDist + (storeState.meshingPair.previewDeltaA ?? 0), 0, 0)
             pairMeshRef.current.rotation.z = -angleGear1 * ratio + phaseOffset
           }
         }
@@ -324,6 +325,8 @@ export const Viewport3D: React.FC = () => {
       try {
         const pairDims = calculateDimensions(params, meshingPair.teeth2)
         const centerDist = pairDims.centerDistance || 50
+        // Preview de calce del motor de backlash (Δa sobre la distancia estándar)
+        const effDist = centerDist + (meshingPair.previewDeltaA ?? 0)
 
         const pairParams: any = isRack
           ? getConjugatePinionParams(params)
@@ -369,7 +372,7 @@ export const Viewport3D: React.FC = () => {
             mainMeshRef.current.visible = focus === 'both' || focus === 'rack'
           }
         } else {
-          pairMesh.position.set(centerDist, 0, 0)
+          pairMesh.position.set(effDist, 0, 0)
         }
         sceneRef.current.add(pairMesh)
         pairMeshRef.current = pairMesh
@@ -390,7 +393,7 @@ export const Viewport3D: React.FC = () => {
           } else {
             lineGeom = new THREE.BufferGeometry().setFromPoints([
               new THREE.Vector3(0, 0, 0),
-              new THREE.Vector3(centerDist, 0, 0),
+              new THREE.Vector3(effDist, 0, 0),
             ])
           }
           const lineMat = new THREE.LineDashedMaterial({
@@ -415,7 +418,7 @@ export const Viewport3D: React.FC = () => {
       active = false
       clearTimeout(timer)
     }
-  }, [meshingPair.enabled, meshingPair.teeth2, meshingPair.showCenterLine, params])
+  }, [meshingPair.enabled, meshingPair.teeth2, meshingPair.showCenterLine, meshingPair.previewDeltaA, params])
 
   // Cotas y medidas dinámicas proyectadas en el piso (3D Floor Dimensions)
   useEffect(() => {
@@ -463,6 +466,7 @@ export const Viewport3D: React.FC = () => {
     params,
     meshingPair.enabled,
     meshingPair.teeth2,
+    meshingPair.previewDeltaA,
     viewSettings.showDimensions,
   ])
 
@@ -503,20 +507,20 @@ export const Viewport3D: React.FC = () => {
   }
 
   const colorsList: { id: FlatColor; label: string; bg: string }[] = [
-    { id: 'mustard', label: 'Amarillo Skåpa', bg: '#d99b1a' },
-    { id: 'orange', label: 'Naranja Taller', bg: '#f97316' },
-    { id: 'blue', label: 'Azul CAD', bg: '#2563eb' },
-    { id: 'white', label: 'Blanco Cerámico', bg: '#e2e8f0' },
-    { id: 'charcoal', label: 'Grafito Mate', bg: '#334155' },
-    { id: 'green', label: 'Verde Técnico', bg: '#10b981' },
+    { id: 'mustard', label: 'Skåpa Yellow', bg: '#d99b1a' },
+    { id: 'orange', label: 'Workshop Orange', bg: '#f97316' },
+    { id: 'blue', label: 'CAD Blue', bg: '#2563eb' },
+    { id: 'white', label: 'Ceramic White', bg: '#e2e8f0' },
+    { id: 'charcoal', label: 'Matte Charcoal', bg: '#334155' },
+    { id: 'green', label: 'Technical Green', bg: '#10b981' },
   ]
 
   return (
     <div className="relative w-full h-full select-none overflow-hidden bg-[#f6f8fb]">
-      {/* Contenedor WebGL */}
+      {/* WebGL Canvas */}
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Píldoras de Cámara y Cotas Técnicas */}
+      {/* Camera & 3D Dimensions Controls */}
       <div className="absolute top-3.5 right-6 flex items-center bg-white/90 backdrop-blur-md px-1.5 py-1 rounded-full border border-slate-200/80 shadow-sm gap-0.5 text-xs">
         <button
           onClick={() => setViewSetting('showDimensions', !viewSettings.showDimensions)}
@@ -525,9 +529,9 @@ export const Viewport3D: React.FC = () => {
               ? 'bg-[#ea580c] text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900'
           }`}
-          title="Mostrar u ocultar cotas de medidas en el piso"
+          title="Show or hide 3D dimensions overlay on floor"
         >
-          Cotas 3D
+          3D Dims
         </button>
 
         <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
@@ -536,7 +540,7 @@ export const Viewport3D: React.FC = () => {
           onClick={resetCameraCenter}
           className="px-2.5 py-1 rounded-full font-medium text-slate-600 hover:text-slate-900 transition-colors"
         >
-          Centrar
+          Center
         </button>
 
         <button
@@ -558,7 +562,7 @@ export const Viewport3D: React.FC = () => {
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          Frente
+          Front
         </button>
 
         <button
@@ -580,7 +584,7 @@ export const Viewport3D: React.FC = () => {
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          Izq.
+          Left
         </button>
 
         <button
@@ -591,11 +595,11 @@ export const Viewport3D: React.FC = () => {
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          Der.
+          Right
         </button>
       </div>
 
-      {/* Selector de Colores Planos (Flat Colors) */}
+      {/* Flat Colors Palette */}
       <div className="absolute top-3.5 left-6 flex items-center bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-200/80 shadow-sm gap-2 text-xs">
         <span className="text-[11px] font-medium text-slate-500 mr-0.5">Color:</span>
         <div className="flex items-center gap-1.5">
@@ -613,12 +617,10 @@ export const Viewport3D: React.FC = () => {
         </div>
       </div>
 
-
-
-      {/* Control flotante para corte transversal */}
+      {/* Section plane slider */}
       {viewSettings.sectionCut && (
         <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-orange-300 shadow-xl">
-          <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Plano de Sección</span>
+          <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Section Plane</span>
           <input
             type="range"
             min="-1"
@@ -632,7 +634,7 @@ export const Viewport3D: React.FC = () => {
         </div>
       )}
 
-      {/* Control de animación si la pareja está activa */}
+      {/* Animation controls if meshing pair is active */}
       {meshingPair.enabled && (
         <div className="absolute bottom-12 right-6 flex items-center gap-3 px-3.5 py-2 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg">
           <button
@@ -641,7 +643,7 @@ export const Viewport3D: React.FC = () => {
               meshingPair.animate ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'bg-slate-100 text-slate-500'
             }`}
           >
-            <span>{meshingPair.animate ? 'Girando' : 'Pausado'}</span>
+            <span>{meshingPair.animate ? 'Rotating' : 'Paused'}</span>
           </button>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-slate-500 font-mono">RPM</span>
@@ -658,17 +660,6 @@ export const Viewport3D: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Banner inferior informativo estilo SKÅDIS */}
-      <div className="absolute bottom-2 left-6 right-6 flex items-center justify-between text-[11px] text-slate-400 bg-white/60 backdrop-blur-xs py-1 px-3 rounded-lg border border-slate-200/50">
-        <span>Creación: el visor muestra una sola pieza centrada. Guarda una variante o expórtala en formato STEP.</span>
-        <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500">
-          <span className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
-          <span>{isGenerating ? 'Calculando CSG...' : 'Manifold-3D WASM'}</span>
-          <span>·</span>
-          <span>{trianglesCount.toLocaleString()} tris</span>
-        </div>
-      </div>
     </div>
   )
 }

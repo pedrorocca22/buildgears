@@ -3,6 +3,7 @@ import { useGearStore } from '../store/useGearStore'
 import { getDIN6885Keyway } from '../cad/din6885'
 import { getDIN912Screw } from '../cad/din912'
 import { calculateDimensions } from '../cad/gearMath'
+import { BacklashPanel } from './BacklashPanel'
 
 export const RightSidebar: React.FC = () => {
   const params = useGearStore((s) => s.params)
@@ -22,21 +23,21 @@ export const RightSidebar: React.FC = () => {
   const dims = calculateDimensions(params, meshingPair.enabled ? meshingPair.teeth2 : undefined)
 
   const rackToothTitle = params.rackToothType === 'herringbone'
-    ? 'Piñón & Cremallera Espiga'
+    ? 'Herringbone Rack & Pinion'
     : params.rackToothType === 'helical'
-    ? 'Piñón & Cremallera Helicoidal'
-    : 'Piñón & Cremallera Recta'
+    ? 'Helical Rack & Pinion'
+    : 'Spur Rack & Pinion'
 
   const gearTitleMap: Record<string, string> = {
-    spur: 'Engranaje Recto',
-    helical: 'Engranaje Helicoidal',
-    herringbone: 'Engranaje Espiga',
-    internal: 'Corona Interior',
+    spur: 'Spur Gear',
+    helical: 'Helical Gear',
+    herringbone: 'Herringbone Gear',
+    internal: 'Internal Ring Gear',
     rack: rackToothTitle,
-    bevel: 'Engranaje Cónico',
+    bevel: 'Bevel Gear',
   }
 
-  // Apertura del modal unificado de apoyo y descarga
+  // Unified modal trigger for download
   const handleExportSTEP = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
     openExportModal('step', target)
   }
@@ -47,35 +48,35 @@ export const RightSidebar: React.FC = () => {
 
   return (
     <aside className="w-84 bg-[#fbfcfd] border-l border-slate-200 flex flex-col h-full select-none shrink-0 text-slate-800">
-      {/* Cabecera del objeto paramétrico estilo CAD Studio */}
+      {/* Parametric object header */}
       <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
         <div>
           <h2 className="text-xs font-bold text-slate-900 leading-tight">
-            {gearTitleMap[params.gearType] || 'Engranaje'}
+            {gearTitleMap[params.gearType] || 'Gear'}
           </h2>
           <p className="text-[10px] text-slate-400">
-            {isRack ? 'Mecanismo Cinemático Acoplado' : 'Objeto paramétrico para CAD / CNC'}
+            {isRack ? 'Coupled Kinematic Mechanism' : 'Parametric CAD / CNC Model'}
           </p>
         </div>
 
         <button
           onClick={resetCurrentGear}
-          title="Restablecer valores por defecto"
+          title="Reset to default parameters"
           className="px-2 py-1 rounded-md text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
         >
-          Restablecer
+          Reset
         </button>
       </div>
 
-      {/* Contenedor de controles con scroll */}
+      {/* Controls container with scroll */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
-        {/* CONTROLES ESPECÍFICOS DE PIÑÓN & CREMALLERA */}
+        {/* RACK & PINION VIEWPORT FOCUS */}
         {isRack && (
           <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-800">Visualización 3D en Pantalla</span>
+              <span className="text-[11px] font-bold text-slate-800">3D Viewport Focus</span>
               <span className="text-[9.5px] text-slate-400 font-mono">
-                {params.rackViewFocus === 'pinion' ? 'Solo Piñón' : params.rackViewFocus === 'rack' ? 'Solo Cremallera' : 'Conjunto'}
+                {params.rackViewFocus === 'pinion' ? 'Pinion Only' : params.rackViewFocus === 'rack' ? 'Rack Only' : 'Assembly'}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-lg">
@@ -88,7 +89,7 @@ export const RightSidebar: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Conjunto
+                Assembly
               </button>
               <button
                 type="button"
@@ -99,7 +100,7 @@ export const RightSidebar: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Cremallera
+                Rack
               </button>
               <button
                 type="button"
@@ -110,34 +111,34 @@ export const RightSidebar: React.FC = () => {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Piñón
+                Pinion
               </button>
             </div>
           </div>
         )}
 
-        {/* SECCIÓN 1: FÍSICA CONJUGADA COMPARTIDA (LEY DE WILLIS / ISO 53) */}
+        {/* SECTION 1: SHARED CONJUGATE PHYSICS / KINEMATIC PROFILE */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
             <div className="flex items-center gap-1.5">
-              <span>{isRack ? '1 · Física Conjugada Compartida' : '1 · Dientes y Perfil Cinemático'}</span>
+              <span>{isRack ? '1 · Shared Conjugate Physics' : '1 · Teeth & Kinematic Profile'}</span>
             </div>
             {isRack && (
               <span className="text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded">
-                Ley de Willis
+                Willis' Law
               </span>
             )}
           </div>
 
-          {/* Si es cremallera: Selector de Dentado Cinemático */}
+          {/* Rack tooth type selector */}
           {isRack && (
             <div>
-              <span className="text-[11px] font-medium text-slate-700 block mb-1.5">Dentado Cinemático Acoplado</span>
+              <span className="text-[11px] font-medium text-slate-700 block mb-1.5">Coupled Kinematic Gearing</span>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { id: 'spur', label: 'Recto', desc: 'Fa = 0 N' },
-                  { id: 'helical', label: 'Helicoidal', desc: 'Silencioso' },
-                  { id: 'herringbone', label: 'Espiga (V)', desc: 'Fa = 0 · Chevron' },
+                  { id: 'spur', label: 'Spur', desc: 'Fa = 0 N' },
+                  { id: 'helical', label: 'Helical', desc: 'Quiet' },
+                  { id: 'herringbone', label: 'Herringbone', desc: 'Fa = 0 · Chevron' },
                 ].map((item) => {
                   const currentToothType = params.rackToothType || (params.helixAngle && params.helixAngle > 0 ? 'helical' : 'spur')
                   const isCurrent = currentToothType === item.id
@@ -166,28 +167,28 @@ export const RightSidebar: React.FC = () => {
             </div>
           )}
 
-          {/* Selector de Norma / Tipo de Perfil de Diente */}
+          {/* Tooth Profile Standard Selector */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <span className="text-[11px] font-medium text-slate-700">Norma del Diente (Ambos)</span>
+              <span className="text-[11px] font-medium text-slate-700">Tooth Standard</span>
               <span className="text-[10px] text-orange-600 font-bold">
                 {params.toothProfileType === 'stub'
                   ? 'Stub AGMA'
                   : params.toothProfileType === 'deep'
-                  ? 'Alto HCR'
+                  ? 'Deep HCR'
                   : params.toothProfileType === 'cycloidal'
-                  ? 'Cicloidal NIHS'
+                  ? 'Cycloidal NIHS'
                   : params.toothProfileType === 'custom'
-                  ? 'Personalizado'
+                  ? 'Custom'
                   : 'ISO 53'}
               </span>
             </div>
             <div className="grid grid-cols-4 gap-1">
               {[
                 { id: 'standard', label: 'ISO 53' },
-                { id: 'stub', label: 'Stub Corto' },
-                { id: 'deep', label: 'Alto HCR' },
-                { id: 'cycloidal', label: 'Cicloidal' },
+                { id: 'stub', label: 'Stub' },
+                { id: 'deep', label: 'Deep HCR' },
+                { id: 'cycloidal', label: 'Cycloidal' },
               ].map((tp) => (
                 <button
                   key={tp.id}
@@ -204,17 +205,17 @@ export const RightSidebar: React.FC = () => {
               ))}
             </div>
             <p className="text-[9.5px] text-slate-400 mt-1 leading-tight">
-              {(params.toothProfileType || 'standard') === 'standard' && 'Estándar ISO 53 / DIN 867. Involuta conjugada exacta entre flancos planos y evolventes.'}
-              {params.toothProfileType === 'stub' && 'Diente corto AGMA 201.02 (+30% resistencia a flexión en raíz de piñón y cremallera).'}
-              {params.toothProfileType === 'deep' && 'Diente alto de contacto extendido (ε > 2.0). Marcha de rodadura ultra silenciosa.'}
-              {params.toothProfileType === 'cycloidal' && 'Perfil cicloidal horológico (DIN 58400 / NIHS). Rodadura pura sin deslizamiento en piñones.'}
+              {(params.toothProfileType || 'standard') === 'standard' && 'ISO 53 / DIN 867 standard. Exact conjugate involute between flat and evolute flanks.'}
+              {params.toothProfileType === 'stub' && 'AGMA 201.02 stub tooth (+30% root bending fatigue strength).'}
+              {params.toothProfileType === 'deep' && 'High contact ratio (HCR) deep tooth (ε > 2.0). Ultra-quiet rolling mesh.'}
+              {params.toothProfileType === 'cycloidal' && 'Horological cycloidal profile (DIN 58400 / NIHS). Pure rolling without sliding.'}
             </p>
           </div>
 
-          {/* Módulo Normal Compartido (mn) */}
+          {/* Shared Normal Module (mn) */}
           <div>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-[11px] font-medium text-slate-700">Módulo Normal (m_n)</span>
+              <span className="text-[11px] font-medium text-slate-700">Normal Module (m_n)</span>
               <span className="font-mono text-xs font-bold text-slate-900">{params.module} mm</span>
             </div>
             <input
@@ -233,15 +234,15 @@ export const RightSidebar: React.FC = () => {
             {isRack && (
               <div className="mt-1.5 p-2 rounded-lg bg-orange-50/70 border border-orange-200/80 text-[9.5px] text-orange-950">
                 <span>
-                  Al cambiar el módulo, el paso de la cremallera (<b>{dims.circularPitch} mm</b>) y el diámetro del piñón (<b>{(dims.pinionPitchRadius ? dims.pinionPitchRadius * 2 : 0).toFixed(1)} mm</b>) se adaptan en tiempo real.
+                  Changing the module updates rack pitch (<b>{dims.circularPitch} mm</b>) and pinion diameter (<b>{(dims.pinionPitchRadius ? dims.pinionPitchRadius * 2 : 0).toFixed(1)} mm</b>) in real time.
                 </span>
               </div>
             )}
           </div>
 
-          {/* Ángulo de Presión */}
+          {/* Pressure Angle */}
           <div>
-            <span className="text-[11px] font-medium text-slate-700 block mb-1.5">Ángulo de Presión Normal (α_n)</span>
+            <span className="text-[11px] font-medium text-slate-700 block mb-1.5">Normal Pressure Angle (α_n)</span>
             <div className="grid grid-cols-3 gap-1.5">
               {[14.5, 20.0, 25.0].map((deg) => (
                 <button
@@ -260,12 +261,12 @@ export const RightSidebar: React.FC = () => {
             </div>
           </div>
 
-          {/* Ángulo de Hélice (para helicoidales o cremallera helicoidal / espiga) */}
+          {/* Helix Angle (for helical, helical rack, or herringbone) */}
           {(isHelical || (isRack && params.rackToothType !== 'spur')) && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-[11px] font-medium text-slate-700">
-                  {isHerringbone ? 'Ángulo Chevron Espiga (β)' : 'Inclinación Hélice (β)'}
+                  {isHerringbone ? 'Herringbone Chevron Angle (β)' : 'Helix Angle (β)'}
                 </span>
                 <span className="font-mono text-xs font-bold text-slate-900">{params.helixAngle || 20}°</span>
               </div>
@@ -285,12 +286,12 @@ export const RightSidebar: React.FC = () => {
 
               {isHerringbone ? (
                 <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] flex items-center justify-between">
-                  <span className="font-semibold">Fuerza axial nula (Fa = 0)</span>
-                  <span className="font-bold text-emerald-600 text-[9px] uppercase tracking-wide">V-Chevron Autocentrante</span>
+                  <span className="font-semibold">Zero net axial force (Fa = 0)</span>
+                  <span className="font-bold text-emerald-600 text-[9px] uppercase tracking-wide">Self-Centering V-Chevron</span>
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <span className="text-[10px] text-slate-500">Sentido de hélice en cremallera:</span>
+                  <span className="text-[10px] text-slate-500">Rack helix hand:</span>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       type="button"
@@ -301,7 +302,7 @@ export const RightSidebar: React.FC = () => {
                           : 'bg-white border-slate-200 text-slate-600'
                       }`}
                     >
-                      Derecha (RH)
+                      Right Hand (RH)
                     </button>
                     <button
                       type="button"
@@ -312,12 +313,12 @@ export const RightSidebar: React.FC = () => {
                           : 'bg-white border-slate-200 text-slate-600'
                       }`}
                     >
-                      Izquierda (LH)
+                      Left Hand (LH)
                     </button>
                   </div>
                   {isRack && (
                     <p className="text-[9.5px] text-slate-400 leading-tight pt-1">
-                      * El piñón adopta automáticamente la hélice opuesta complementaria ({params.helixHand === 'right' ? 'LH' : 'RH'}) para garantizar acoplamiento de flancos a 180°.
+                      * Pinion automatically adopts the complementary opposite hand ({params.helixHand === 'right' ? 'LH' : 'RH'}) for a 180° conjugate mesh.
                     </p>
                   )}
                 </div>
@@ -325,13 +326,13 @@ export const RightSidebar: React.FC = () => {
             </div>
           )}
 
-          {/* Si NO es cremallera: Controles estándar de Dientes y Desplazamiento */}
+          {/* Non-rack standard teeth count & profile shift */}
           {!isRack && (
             <>
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] font-medium text-slate-700">Número de Dientes (z)</span>
-                  <span className="font-mono text-xs font-bold text-slate-900">{params.teeth} uds.</span>
+                  <span className="text-[11px] font-medium text-slate-700">Number of Teeth (z)</span>
+                  <span className="font-mono text-xs font-bold text-slate-900">{params.teeth} teeth</span>
                 </div>
                 <input
                   type="range"
@@ -343,14 +344,14 @@ export const RightSidebar: React.FC = () => {
                   className="w-full accent-orange-500 cursor-pointer"
                 />
                 <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
-                  <span>8 uds.</span>
-                  <span>120 uds.</span>
+                  <span>8 teeth</span>
+                  <span>120 teeth</span>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] font-medium text-slate-700">Desplazamiento Perfil (x)</span>
+                  <span className="text-[11px] font-medium text-slate-700">Profile Shift (x)</span>
                   <span className="font-mono text-xs font-bold text-slate-900">
                     {params.profileShift > 0 ? `+${params.profileShift.toFixed(2)}` : params.profileShift.toFixed(2)}
                   </span>
@@ -369,14 +370,14 @@ export const RightSidebar: React.FC = () => {
                   <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[10px] space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-amber-800">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      Riesgo de socavado en raíz (z &lt; {dims.undercutLimitZ})
+                      Root undercut risk (z &lt; {dims.undercutLimitZ})
                     </div>
                     <button
                       type="button"
                       onClick={() => setGearParam('profileShift', dims.recommendedShift)}
                       className="mt-1 w-full py-1 px-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-xs transition-colors"
                     >
-                      Auto-corregir a x = +{dims.recommendedShift.toFixed(2)}
+                      Auto-correct to x = +{dims.recommendedShift.toFixed(2)}
                     </button>
                   </div>
                 )}
@@ -384,7 +385,7 @@ export const RightSidebar: React.FC = () => {
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] font-medium text-slate-700">Anchura de Cara (b)</span>
+                  <span className="text-[11px] font-medium text-slate-700">Face Width (b)</span>
                   <span className="font-mono text-xs font-bold text-slate-900">{params.faceWidth} mm</span>
                 </div>
                 <input
@@ -398,12 +399,12 @@ export const RightSidebar: React.FC = () => {
                 />
               </div>
 
-              {/* Chaflán Paramétrico de Dientes (45°) */}
+              {/* Parametric Tooth Chamfer (45°) */}
               <div className="pt-2 border-t border-slate-100 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
-                    <span className="text-[10px] text-slate-400">Bisel en caras frontal y posterior</span>
+                    <span className="text-[11px] font-semibold text-slate-800 block">Tooth Chamfer (45°)</span>
+                    <span className="text-[10px] text-slate-400">Bevel on front and rear axial faces</span>
                   </div>
                   <button
                     type="button"
@@ -423,7 +424,7 @@ export const RightSidebar: React.FC = () => {
                 {params.hasToothChamfer && (
                   <div className="space-y-1.5 pt-1">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-slate-600">Tamaño Chaflán (c)</span>
+                      <span className="text-[10px] text-slate-600">Chamfer Size (c)</span>
                       <span className="font-mono text-xs font-bold text-slate-900">
                         {(params.toothChamfer || 0.6).toFixed(1)} mm
                       </span>
@@ -439,7 +440,7 @@ export const RightSidebar: React.FC = () => {
                     />
                     <div className="flex justify-between text-[9px] text-slate-400">
                       <span>0.1 mm</span>
-                      <span className="text-slate-500 font-medium">Bisel 45° anti-rebabas</span>
+                      <span className="text-slate-500 font-medium">45° deburring bevel</span>
                       <span>{Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))} mm</span>
                     </div>
                   </div>
@@ -449,17 +450,17 @@ export const RightSidebar: React.FC = () => {
           )}
         </div>
 
-        {/* SECCIÓN 2: BARRA DE CREMALLERA */}
+        {/* SECTION 2: GEAR RACK BAR */}
         {isRack && (
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-              <span>2 · Barra de Cremallera</span>
+              <span>2 · Gear Rack Bar</span>
             </div>
 
-            {/* Longitud de Barra (L) */}
+            {/* Total Bar Length (L) */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-medium text-slate-700">Longitud Total Barra (L)</span>
+                <span className="text-[11px] font-medium text-slate-700">Total Bar Length (L)</span>
                 <span className="font-mono text-xs font-bold text-slate-900">{params.rackLength || 160} mm</span>
               </div>
               <input
@@ -477,10 +478,10 @@ export const RightSidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* Altura de Barra (H) */}
+            {/* Bar Height (H) */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-medium text-slate-700">Altura de Barra (H)</span>
+                <span className="text-[11px] font-medium text-slate-700">Bar Height (H)</span>
                 <span className="font-mono text-xs font-bold text-slate-900">{params.rackHeight || 25} mm</span>
               </div>
               <input
@@ -498,10 +499,10 @@ export const RightSidebar: React.FC = () => {
               </div>
             </div>
 
-            {/* Anchura de Cara (b) de la barra */}
+            {/* Rack Width (b_rack) */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-[11px] font-medium text-slate-700">Anchura Barra (b_rack)</span>
+                <span className="text-[11px] font-medium text-slate-700">Rack Width (b_rack)</span>
                 <span className="font-mono text-xs font-bold text-slate-900">{params.faceWidth} mm</span>
               </div>
               <input
@@ -515,12 +516,12 @@ export const RightSidebar: React.FC = () => {
               />
             </div>
 
-            {/* Chaflán Paramétrico de Dientes de Cremallera (45°) */}
+            {/* Tooth Chamfer (45°) */}
             <div className="pt-2 border-t border-slate-100 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
-                  <span className="text-[10px] text-slate-400">Bisel en extremos axiales de la barra</span>
+                  <span className="text-[11px] font-semibold text-slate-800 block">Tooth Chamfer (45°)</span>
+                  <span className="text-[10px] text-slate-400">Chamfer along bar axial edges</span>
                 </div>
                 <button
                   type="button"
@@ -540,7 +541,7 @@ export const RightSidebar: React.FC = () => {
               {params.hasToothChamfer && (
                 <div className="space-y-1.5 pt-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-600">Tamaño Chaflán (c)</span>
+                    <span className="text-[10px] text-slate-600">Chamfer Size (c)</span>
                     <span className="font-mono text-xs font-bold text-slate-900">
                       {(params.toothChamfer || 0.6).toFixed(1)} mm
                     </span>
@@ -556,19 +557,19 @@ export const RightSidebar: React.FC = () => {
                   />
                   <div className="flex justify-between text-[9px] text-slate-400">
                     <span>0.1 mm</span>
-                    <span className="text-slate-500 font-medium">Bisel 45° en dientes</span>
+                    <span className="text-slate-500 font-medium">45° tooth chamfer</span>
                     <span>{Math.min(3.0, Number((params.faceWidth * 0.35).toFixed(1)))} mm</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Fijaciones DIN 912 */}
+            {/* Mounting Holes */}
             <div className="pt-2 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-800 block">Taladros de Fijación</span>
-                  <span className="text-[10px] text-slate-400">Cajeras para tornillos Allen DIN 912</span>
+                  <span className="text-[11px] font-semibold text-slate-800 block">Mounting Holes</span>
+                  <span className="text-[10px] text-slate-400">Counterbored for DIN 912 socket head screws</span>
                 </div>
                 <button
                   type="button"
@@ -588,7 +589,7 @@ export const RightSidebar: React.FC = () => {
               {params.rackMountingHoles && (
                 <div className="space-y-3 pt-1">
                   <div>
-                    <span className="text-[11px] font-medium text-slate-700 block mb-1">Métrica del Tornillo</span>
+                    <span className="text-[11px] font-medium text-slate-700 block mb-1">Screw Thread Size</span>
                     <div className="grid grid-cols-6 gap-1">
                       {(['M3', 'M4', 'M5', 'M6', 'M8', 'M10'] as const).map((m) => (
                         <button
@@ -608,7 +609,7 @@ export const RightSidebar: React.FC = () => {
                   </div>
 
                   <div>
-                    <span className="text-[11px] font-medium text-slate-700 block mb-1">Orientación de Fijación</span>
+                    <span className="text-[11px] font-medium text-slate-700 block mb-1">Mounting Orientation</span>
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
@@ -619,7 +620,7 @@ export const RightSidebar: React.FC = () => {
                             : 'bg-white border-slate-200 text-slate-600'
                         }`}
                       >
-                        Inferior (Base)
+                        Bottom (Base)
                       </button>
                       <button
                         type="button"
@@ -630,15 +631,15 @@ export const RightSidebar: React.FC = () => {
                             : 'bg-white border-slate-200 text-slate-600'
                         }`}
                       >
-                        Lateral (Canto)
+                        Side (Face)
                       </button>
                     </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[11px] font-medium text-slate-700">Número de Taladros</span>
-                      <span className="font-mono text-xs font-bold text-slate-900">{params.rackHoleCount || 3} uds.</span>
+                      <span className="text-[11px] font-medium text-slate-700">Number of Holes</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">{params.rackHoleCount || 3} holes</span>
                     </div>
                     <input
                       type="range"
@@ -653,11 +654,11 @@ export const RightSidebar: React.FC = () => {
 
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-2 text-[10px] font-mono text-slate-600 space-y-0.5">
                     <div className="flex justify-between">
-                      <span>Broca pasante:</span>
+                      <span>Through drill:</span>
                       <span className="font-bold text-slate-800">Ø {dinScrew.throughHoleDia} mm</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Cajera DIN 912:</span>
+                      <span>DIN 912 counterbore:</span>
                       <span className="font-bold text-slate-800">Ø {dinScrew.counterboreDia} mm (h={dinScrew.counterboreDepth}mm)</span>
                     </div>
                   </div>
@@ -667,23 +668,23 @@ export const RightSidebar: React.FC = () => {
           </div>
         )}
 
-        {/* SECCIÓN 3: PIÑÓN MOTRIZ ACOPLADO (PARÁMETROS Y MODIFICACIONES) */}
+        {/* SECTION 3: CONJUGATE DRIVE PINION */}
         {isRack && (
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
               <div className="flex items-center gap-1.5">
-                <span>3 · Piñón Motriz Conjugado</span>
+                <span>3 · Conjugate Drive Pinion</span>
               </div>
               <span className="text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded">
                 zp = {params.rackPinionTeeth || 20}
               </span>
             </div>
 
-            {/* Toggle de Inclusión del Piñón */}
+            {/* Include Pinion in Mechanism */}
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-semibold text-slate-800 block">Acoplar Piñón al Mecanismo</span>
-                <span className="text-[10px] text-slate-400">Calcula y posiciona el piñón conjugado</span>
+                <span className="text-[11px] font-semibold text-slate-800 block">Include Pinion in Mechanism</span>
+                <span className="text-[10px] text-slate-400">Calculates and positions the mating pinion</span>
               </div>
               <button
                 type="button"
@@ -702,11 +703,11 @@ export const RightSidebar: React.FC = () => {
 
             {params.rackIncludePinion !== false && (
               <div className="space-y-3 pt-2 border-t border-slate-100">
-                {/* Dientes del piñón (zp) */}
+                {/* Pinion Teeth (z_p) */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] font-medium text-slate-700">Dientes del Piñón (z_p)</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{params.rackPinionTeeth || 20} uds.</span>
+                    <span className="text-[11px] font-medium text-slate-700">Pinion Teeth (z_p)</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">{params.rackPinionTeeth || 20} teeth</span>
                   </div>
                   <input
                     type="range"
@@ -718,17 +719,17 @@ export const RightSidebar: React.FC = () => {
                     className="w-full accent-orange-500 cursor-pointer"
                   />
                   <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
-                    <span>10 uds.</span>
-                    <span>60 uds.</span>
+                    <span>10 teeth</span>
+                    <span>60 teeth</span>
                   </div>
                 </div>
 
-                {/* Desplazamiento de Perfil del Piñón (x_p) */}
+                {/* Pinion Profile Shift (x_p) */}
                 <div className="pt-2 border-t border-slate-100">
                   <div className="flex justify-between items-center mb-1">
                     <div>
-                      <span className="text-[11px] font-medium text-slate-700 block">Desplazamiento Perfil Piñón (x_p)</span>
-                      <span className="text-[9.5px] text-slate-400">Corrige socavado y desplaza cota operativa Y</span>
+                      <span className="text-[11px] font-medium text-slate-700 block">Pinion Profile Shift (x_p)</span>
+                      <span className="text-[9.5px] text-slate-400">Corrects undercut and shifts operating Y axis</span>
                     </div>
                     <span className="font-mono text-xs font-bold text-slate-900">
                       {(params.rackPinionProfileShift || 0) > 0 ? `+${(params.rackPinionProfileShift || 0).toFixed(2)}` : (params.rackPinionProfileShift || 0).toFixed(2)}
@@ -744,35 +745,35 @@ export const RightSidebar: React.FC = () => {
                     className="w-full accent-orange-500 cursor-pointer"
                   />
 
-                  {/* Alerta de socavado en piñón si zp < z_min */}
+                  {/* Pinion root undercut warning */}
                   {dims.pinionUndercutWarning && (
                     <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-[10px] space-y-1.5">
                       <div className="font-bold text-amber-800">
-                        Riesgo de socavado en raíz del piñón (zp &lt; {dims.undercutLimitZ})
+                        Pinion root undercut risk (zp &lt; {dims.undercutLimitZ})
                       </div>
                       <div className="text-slate-600 text-[9.5px]">
-                        Con {params.rackPinionTeeth || 20} dientes se produce entalladura si no se aplica corrección x_p.
+                        With {params.rackPinionTeeth || 20} teeth, undercut occurs unless an x_p shift is applied.
                       </div>
                       <button
                         type="button"
                         onClick={() => setGearParam('rackPinionProfileShift', dims.pinionRecommendedShift)}
                         className="w-full py-1 px-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-xs transition-colors"
                       >
-                        Auto-corregir perfil piñón a x_p = +{(dims.pinionRecommendedShift || 0).toFixed(2)}
+                        Auto-correct pinion profile to x_p = +{(dims.pinionRecommendedShift || 0).toFixed(2)}
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Eje del Piñón (Bore) con interruptor Activar / Desactivar */}
+                {/* Pinion Center Bore */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] font-semibold text-slate-800 block">Taladro Central en Piñón</span>
+                      <span className="text-[11px] font-semibold text-slate-800 block">Pinion Center Bore</span>
                       <span className="text-[10px] text-slate-400">
                         {(params.rackPinionBore ?? 0) > 0
-                          ? `Eje Ø ${params.rackPinionBore} mm`
-                          : 'Macizo (sin taladro ni agujero central)'}
+                          ? `Shaft Ø ${params.rackPinionBore} mm`
+                          : 'Solid (no center bore)'}
                       </span>
                     </div>
                     <button
@@ -800,7 +801,7 @@ export const RightSidebar: React.FC = () => {
                   {(params.rackPinionBore ?? 0) > 0 && (
                     <div className="space-y-1.5 pt-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-600">Diámetro Eje Piñón (d_eje)</span>
+                        <span className="text-[10px] text-slate-600">Pinion Bore Diameter (d)</span>
                         <span className="font-mono text-xs font-bold text-slate-900">{params.rackPinionBore} mm</span>
                       </div>
                       <input
@@ -820,10 +821,10 @@ export const RightSidebar: React.FC = () => {
                   )}
                 </div>
 
-                {/* Anchura de Cara Piñón (b_pinion) */}
+                {/* Pinion Width (b_pinion) */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] font-medium text-slate-700">Anchura Piñón (b_pinion)</span>
+                    <span className="text-[11px] font-medium text-slate-700">Pinion Width (b_pinion)</span>
                     <span className="font-mono text-xs font-bold text-slate-900">{params.rackPinionFaceWidth || params.faceWidth} mm</span>
                   </div>
                   <input
@@ -841,18 +842,18 @@ export const RightSidebar: React.FC = () => {
                       onClick={() => setGearParam('rackPinionFaceWidth', params.faceWidth)}
                       className="text-orange-600 hover:underline"
                     >
-                      Sincronizar con cremallera ({params.faceWidth} mm)
+                      Sync with rack ({params.faceWidth} mm)
                     </button>
                     <span>80 mm</span>
                   </div>
                 </div>
 
-                {/* Chaflán Paramétrico de Dientes del Piñón (45°) */}
+                {/* Tooth Chamfer (45°) */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] font-semibold text-slate-800 block">Chaflán de Dientes (45°)</span>
-                      <span className="text-[10px] text-slate-400">Bisel caras axiales del piñón</span>
+                      <span className="text-[11px] font-semibold text-slate-800 block">Tooth Chamfer (45°)</span>
+                      <span className="text-[10px] text-slate-400">Chamfer on pinion axial faces</span>
                     </div>
                     <button
                       type="button"
@@ -872,7 +873,7 @@ export const RightSidebar: React.FC = () => {
                   {params.rackPinionHasToothChamfer && (
                     <div className="space-y-1.5 pt-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-600">Tamaño Chaflán Piñón (c)</span>
+                        <span className="text-[10px] text-slate-600">Pinion Chamfer Size (c)</span>
                         <span className="font-mono text-xs font-bold text-slate-900">
                           {(params.rackPinionToothChamfer || 0.6).toFixed(1)} mm
                         </span>
@@ -888,20 +889,20 @@ export const RightSidebar: React.FC = () => {
                       />
                       <div className="flex justify-between text-[9px] text-slate-400">
                         <span>0.1 mm</span>
-                        <span className="text-slate-500 font-medium">Bisel 45° anti-rebabas</span>
+                        <span className="text-slate-500 font-medium">45° deburring bevel</span>
                         <span>{Math.min(3.0, Number(((params.rackPinionFaceWidth || params.faceWidth) * 0.35).toFixed(1)))} mm</span>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Estilo del cuerpo del piñón: Macizo / Buje */}
+                {/* Pinion Body Style */}
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <span className="text-[11px] font-medium text-slate-700 block">Cuerpo del Piñón</span>
+                  <span className="text-[11px] font-medium text-slate-700 block">Pinion Body Style</span>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
-                      { id: 'solid', label: 'Macizo Plano' },
-                      { id: 'hub', label: 'Con Buje' },
+                      { id: 'solid', label: 'Solid Flat' },
+                      { id: 'hub', label: 'With Hub' },
                     ].map((st) => (
                       <button
                         key={st.id}
@@ -921,7 +922,7 @@ export const RightSidebar: React.FC = () => {
                   {(params.rackPinionBodyStyle || 'solid') === 'hub' && (
                     <div className="space-y-2 pt-1.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-slate-600">Diámetro Buje</span>
+                        <span className="text-[10px] text-slate-600">Hub Diameter</span>
                         <span className="font-mono text-[11px] font-bold text-slate-800">
                           {params.rackPinionHubDiameter || 28} mm
                         </span>
@@ -937,7 +938,7 @@ export const RightSidebar: React.FC = () => {
                       />
 
                       <div className="flex justify-between items-center pt-1">
-                        <span className="text-[10px] text-slate-600">Saliente Buje</span>
+                        <span className="text-[10px] text-slate-600">Hub Offset</span>
                         <span className="font-mono text-[11px] font-bold text-slate-800">
                           {params.rackPinionHubOffset || 4} mm
                         </span>
@@ -955,14 +956,14 @@ export const RightSidebar: React.FC = () => {
                   )}
                 </div>
 
-                {/* Chavetero DIN 6885 en piñón con parametrización completa */}
+                {/* Pinion Keyway */}
                 {(params.rackPinionBore ?? 0) > 0 && (
                   <div className="pt-2 border-t border-slate-100 space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[11px] font-semibold text-slate-800 block">Chavetero en Piñón</span>
+                        <span className="text-[11px] font-semibold text-slate-800 block">Pinion Keyway</span>
                         <span className="text-[10px] text-slate-400">
-                          {params.rackPinionKeywayCustom ? 'Parametrización manual activa' : 'Dimensiones automáticas normalizadas'}
+                          {params.rackPinionKeywayCustom ? 'Custom manual dimensions' : 'Standard automatic dimensions'}
                         </span>
                       </div>
                       <button
@@ -984,7 +985,7 @@ export const RightSidebar: React.FC = () => {
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-semibold text-slate-700 uppercase tracking-wider">
-                            Diseño del Chavetero
+                            Keyway Design
                           </span>
                           <div className="flex bg-slate-200/80 p-0.5 rounded-md text-[10px]">
                             <button
@@ -1024,7 +1025,7 @@ export const RightSidebar: React.FC = () => {
                           <div className="space-y-2 pt-1 border-t border-slate-200/60">
                             <div>
                               <div className="flex justify-between items-center mb-0.5 text-[10px]">
-                                <span className="text-slate-700 font-medium">Anchura chaveta (b)</span>
+                                <span className="text-slate-700 font-medium">Keyway width (b)</span>
                                 <span className="font-mono font-bold text-orange-600">
                                   {(params.rackPinionKeywayWidth ?? pinionKeyway.b).toFixed(1)} mm
                                 </span>
@@ -1047,7 +1048,7 @@ export const RightSidebar: React.FC = () => {
 
                             <div>
                               <div className="flex justify-between items-center mb-0.5 text-[10px]">
-                                <span className="text-slate-700 font-medium">Profundidad en cubo (t₂)</span>
+                                <span className="text-slate-700 font-medium">Hub keyway depth (t₂)</span>
                                 <span className="font-mono font-bold text-orange-600">
                                   {(params.rackPinionKeywayDepth ?? pinionKeyway.t2).toFixed(1)} mm
                                 </span>
@@ -1077,7 +1078,7 @@ export const RightSidebar: React.FC = () => {
                                 }}
                                 className="text-[9px] text-orange-600 hover:underline font-medium"
                               >
-                                Restablecer a norma DIN 6885
+                                Reset to DIN 6885 standard
                               </button>
                             </div>
                           </div>
@@ -1098,27 +1099,27 @@ export const RightSidebar: React.FC = () => {
           </div>
         )}
 
-        {/* SECCIÓN 2 & 3 PARA ENGRANAJES NORMALES */}
+        {/* SECTION 2 & 3 FOR NORMAL GEARS */}
         {!isRack && (
           <>
             <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-                <span>2 · Eje y Chavetero DIN 6885</span>
+                <span>2 · Shaft Bore & DIN 6885 Keyway</span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   params.boreDiameter > 0
                     ? 'bg-orange-100 text-orange-700'
                     : 'bg-slate-100 text-slate-500'
                 }`}>
-                  {params.boreDiameter > 0 ? `Ø ${params.boreDiameter} mm` : 'Macizo'}
+                  {params.boreDiameter > 0 ? `Ø ${params.boreDiameter} mm` : 'Solid'}
                 </span>
               </div>
 
-              {/* Interruptor de activación del taladro central */}
+              {/* Center shaft bore toggle */}
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-semibold text-slate-800 block">Taladro Central (Eje)</span>
+                  <span className="text-[11px] font-semibold text-slate-800 block">Center Shaft Bore</span>
                   <span className="text-[10px] text-slate-400">
-                    {params.boreDiameter > 0 ? 'Perforación pasante cilíndrica' : 'Desactivado (engranaje macizo ciego)'}
+                    {params.boreDiameter > 0 ? 'Cylindrical through hole' : 'Disabled (solid blind gear)'}
                   </span>
                 </div>
                 <button
@@ -1147,7 +1148,7 @@ export const RightSidebar: React.FC = () => {
                 <div className="space-y-3 pt-2 border-t border-slate-100">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[11px] font-medium text-slate-700">Diámetro del Eje (d)</span>
+                      <span className="text-[11px] font-medium text-slate-700">Shaft Bore Diameter (d)</span>
                       <span className="font-mono text-xs font-bold text-slate-900">{params.boreDiameter} mm</span>
                     </div>
                     <input
@@ -1168,9 +1169,9 @@ export const RightSidebar: React.FC = () => {
                   <div className="pt-2 border-t border-slate-100 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[11px] font-semibold text-slate-800 block">Chavetero DIN 6885-1</span>
+                        <span className="text-[11px] font-semibold text-slate-800 block">DIN 6885-1 Keyway</span>
                         <span className="text-[10px] text-slate-400">
-                          {params.keywayCustom ? 'Parametrización manual activa' : 'Dimensiones automáticas normalizadas'}
+                          {params.keywayCustom ? 'Custom manual dimensions' : 'Standard automatic dimensions'}
                         </span>
                       </div>
                       <button
@@ -1190,10 +1191,10 @@ export const RightSidebar: React.FC = () => {
 
                     {params.hasKeyway && (
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-2.5">
-                        {/* Selector de modo: Automático DIN 6885 vs Manual */}
+                        {/* Keyway selector: DIN 6885 vs Manual */}
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-semibold text-slate-700 uppercase tracking-wider">
-                            Diseño del Chavetero
+                            Keyway Design
                           </span>
                           <div className="flex bg-slate-200/80 p-0.5 rounded-md text-[10px]">
                             <button
@@ -1231,10 +1232,10 @@ export const RightSidebar: React.FC = () => {
 
                         {params.keywayCustom ? (
                           <div className="space-y-2 pt-1 border-t border-slate-200/60">
-                            {/* Anchura de chavetero (b) */}
+                            {/* Keyway width (b) */}
                             <div>
                               <div className="flex justify-between items-center mb-0.5 text-[10px]">
-                                <span className="text-slate-700 font-medium">Anchura del chavetero (b)</span>
+                                <span className="text-slate-700 font-medium">Keyway width (b)</span>
                                 <span className="font-mono font-bold text-orange-600">
                                   {(params.keywayWidth ?? standardKeyway.b).toFixed(1)} mm
                                 </span>
@@ -1255,10 +1256,10 @@ export const RightSidebar: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Profundidad en el buje (t2) */}
+                            {/* Hub keyway depth (t2) */}
                             <div>
                               <div className="flex justify-between items-center mb-0.5 text-[10px]">
-                                <span className="text-slate-700 font-medium">Profundidad en cubo/buje (t₂)</span>
+                                <span className="text-slate-700 font-medium">Hub keyway depth (t₂)</span>
                                 <span className="font-mono font-bold text-orange-600">
                                   {(params.keywayDepth ?? standardKeyway.t2).toFixed(1)} mm
                                 </span>
@@ -1288,7 +1289,7 @@ export const RightSidebar: React.FC = () => {
                                 }}
                                 className="text-[9px] text-orange-600 hover:underline font-medium"
                               >
-                                Restablecer a norma DIN 6885
+                                Reset to DIN 6885 standard
                               </button>
                             </div>
                           </div>
@@ -1307,28 +1308,28 @@ export const RightSidebar: React.FC = () => {
               ) : (
                 <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-2.5 text-[10px] text-slate-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                  <span>Sin perforación central. Núcleo 100% macizo continuo.</span>
+                  <span>No center bore. Continuous solid core.</span>
                 </div>
               )}
             </div>
 
             <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-                <span>3 · Cuerpo y Aligeramientos</span>
+                <span>3 · Body & Weight Reduction</span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   params.bodyStyle === 'solid'
                     ? 'bg-slate-100 text-slate-600'
                     : 'bg-orange-100 text-orange-700'
                 }`}>
-                  {params.bodyStyle === 'solid' ? 'Macizo' : params.bodyStyle === 'hub' ? 'Buje' : 'Aligerado'}
+                  {params.bodyStyle === 'solid' ? 'Solid' : params.bodyStyle === 'hub' ? 'Hub' : 'Spokes'}
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { id: 'solid', label: 'Macizo' },
-                  { id: 'hub', label: 'Con Buje' },
-                  { id: 'spoke', label: 'Aligerado' },
+                  { id: 'solid', label: 'Solid' },
+                  { id: 'hub', label: 'With Hub' },
+                  { id: 'spoke', label: 'Spoke Cutouts' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -1348,14 +1349,14 @@ export const RightSidebar: React.FC = () => {
               {params.bodyStyle === 'solid' && (
                 <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-2.5 text-[10px] text-slate-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                  <span>Cuerpo sólido continuo sin sustracciones ni orificios.</span>
+                  <span>Continuous solid body without cutouts or voids.</span>
                 </div>
               )}
 
               {params.bodyStyle === 'hub' && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-slate-700">Diámetro Buje</span>
+                    <span className="text-[11px] text-slate-700">Hub Diameter</span>
                     <span className="font-mono text-xs font-bold text-slate-900">{params.hubDiameter} mm</span>
                   </div>
                   <input
@@ -1373,8 +1374,8 @@ export const RightSidebar: React.FC = () => {
               {params.bodyStyle === 'spoke' && (
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-slate-700">Orificios aligeramiento</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{params.holeCount} uds.</span>
+                    <span className="text-[11px] text-slate-700">Spoke Cutouts</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">{params.holeCount} holes</span>
                   </div>
                   <input
                     type="range"
@@ -1387,7 +1388,7 @@ export const RightSidebar: React.FC = () => {
                   />
 
                   <div className="flex justify-between items-center pt-1">
-                    <span className="text-[11px] text-slate-700">Diámetro orificio</span>
+                    <span className="text-[11px] text-slate-700">Cutout Diameter</span>
                     <span className="font-mono text-xs font-bold text-slate-900">{params.holeDiameter} mm</span>
                   </div>
                   <input
@@ -1405,36 +1406,36 @@ export const RightSidebar: React.FC = () => {
           </>
         )}
 
-        {/* SECCIÓN 4: SIMULACIÓN CINEMÁTICA Y MONTAJE */}
+        {/* SECTION 4: KINEMATICS & ASSEMBLY */}
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-            <span>{isRack ? '4 · Cinemática & Montaje del Conjunto' : '4 · Pareja Cinemática'}</span>
+            <span>{isRack ? '4 · Kinematics & Assembly' : '4 · Kinematic Meshing Pair'}</span>
           </div>
 
-          {/* En cremallera: Tarjeta destacada de cotas de montaje y cinemática */}
+          {/* In rack: Highlight card for mounting dimensions and kinematics */}
           {isRack && (
             <div className="bg-orange-50/70 border border-orange-200/90 rounded-xl p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-extrabold uppercase tracking-wide text-orange-800">
-                  Cotas Físicas de Montaje
+                  Mounting Dimensions
                 </span>
-                <span className="text-[9px] font-mono text-slate-500">Contacto Tangencial</span>
+                <span className="text-[9px] font-mono text-slate-500">Pitch Tangency</span>
               </div>
               <div className="grid grid-cols-2 gap-2 font-mono text-xs">
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
-                  <div className="text-[9.5px] text-slate-400">Cota Montaje (H_mont):</div>
+                  <div className="text-[9.5px] text-slate-400">Mounting Distance (H_mont):</div>
                   <div className="font-extrabold text-orange-950 text-sm">{dims.mountingDistance} mm</div>
-                  <div className="text-[8.5px] text-slate-400">Base cremallera → eje piñón</div>
+                  <div className="text-[8.5px] text-slate-400">Rack base → pinion center</div>
                 </div>
                 <div className="bg-white p-2 rounded-lg border border-orange-100">
-                  <div className="text-[9.5px] text-slate-400">Avance / Vuelta:</div>
+                  <div className="text-[9.5px] text-slate-400">Feed per Rev:</div>
                   <div className="font-extrabold text-orange-950 text-sm">{dims.feedPerRev} mm</div>
-                  <div className="text-[8.5px] text-slate-400">π · dp por revolución</div>
+                  <div className="text-[8.5px] text-slate-400">π · d_p per revolution</div>
                 </div>
               </div>
 
               <div className="flex justify-between items-baseline font-mono text-[10px] text-slate-600 pt-1 border-t border-orange-200/60">
-                <span>Velocidad lineal ({meshingPair.rpm} RPM):</span>
+                <span>Linear speed ({meshingPair.rpm} RPM):</span>
                 <span className="font-bold text-slate-900">{dims.linearVelocity} mm/s</span>
               </div>
             </div>
@@ -1443,10 +1444,10 @@ export const RightSidebar: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[11px] font-semibold text-slate-800 block">
-                {isRack ? 'Simular Movimiento Actuador' : 'Acoplar segundo engranaje'}
+                {isRack ? 'Simulate Linear Actuator' : 'Couple Mating Gear'}
               </span>
               <span className="text-[10px] text-slate-400">
-                {isRack ? 'Anima el desplazamiento lineal conjugado' : 'Comprueba engrane y distancia'}
+                {isRack ? 'Animates conjugate linear translation' : 'Inspect mesh & center distance'}
               </span>
             </div>
             <button
@@ -1468,7 +1469,7 @@ export const RightSidebar: React.FC = () => {
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] text-slate-700">Velocidad del Piñón</span>
+                  <span className="text-[11px] text-slate-700">Pinion Speed</span>
                   <span className="font-mono text-xs font-bold text-slate-900">{meshingPair.rpm} RPM</span>
                 </div>
                 <input
@@ -1485,8 +1486,8 @@ export const RightSidebar: React.FC = () => {
               {!isRack && (
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] text-slate-700">Dientes Engranaje 2 (z2)</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{meshingPair.teeth2} uds.</span>
+                    <span className="text-[11px] text-slate-700">Mating Gear Teeth (z2)</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">{meshingPair.teeth2} teeth</span>
                   </div>
                   <input
                     type="range"
@@ -1499,23 +1500,33 @@ export const RightSidebar: React.FC = () => {
                   />
                 </div>
               )}
+
+              {!isRack && (
+                <BacklashPanel
+                  params={params}
+                  teeth2={meshingPair.teeth2}
+                  onApplyThinning={(v) => setGearParam('backlash', v)}
+                  previewDeltaA={meshingPair.previewDeltaA ?? null}
+                  onPreview={(d) => setMeshingPair('previewDeltaA', d)}
+                />
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ÁREA FIJA INFERIOR DE ACCIONES DE EXPORTACIÓN UNIFICADA */}
+      {/* FIXED BOTTOM ACTIONS */}
       <div className="p-3 border-t border-slate-200 bg-white space-y-2 shrink-0">
-        {/* Fila 1: Descarga individual STEP y STL */}
+        {/* Row 1: STEP & STL */}
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => handleExportSTEP(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
             disabled={exportStatus.isExporting}
             className="py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Descargar modelo CAD analítico STEP (ISO 10303 - B-Rep)"
+            title="Download analytic STEP CAD model (ISO 10303 - B-Rep)"
           >
-            Descargar STEP
+            Download STEP
           </button>
 
           <button
@@ -1523,13 +1534,13 @@ export const RightSidebar: React.FC = () => {
             onClick={() => handleExportSTL(isRack && params.rackViewFocus === 'pinion' ? 'pinion' : 'default')}
             disabled={exportStatus.isExporting}
             className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold text-xs shadow-xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Descargar archivo de malla 3D STL para impresión"
+            title="Download 3D mesh STL file for 3D printing"
           >
-            Descargar STL
+            Download STL
           </button>
         </div>
 
-        {/* Fila 2: Descargar Conjunto Completo */}
+        {/* Row 2: Download Full Assembly */}
         <button
           type="button"
           onClick={() => handleExportSTEP('assembly')}
@@ -1537,11 +1548,11 @@ export const RightSidebar: React.FC = () => {
           className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] border border-slate-300 text-slate-800 font-bold text-xs shadow-2xs transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
           title={
             isRack
-              ? 'Descargar conjunto ensamblado completo (Cremallera + Piñón)'
-              : 'Descargar conjunto ensamblado completo (Engranaje 1 + Engranaje 2 acoplados)'
+              ? 'Download complete assembly (Rack + Pinion)'
+              : 'Download complete assembly (Gear 1 + Gear 2 coupled)'
           }
         >
-          Descargar Conjunto
+          Download Assembly
         </button>
       </div>
     </aside>

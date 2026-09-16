@@ -1,6 +1,6 @@
 import OCModule from 'replicad-opencascadejs'
 import ocWasmUrl from 'replicad-opencascadejs/wasm?url'
-import { setOC, draw, drawCircle, drawRectangle, makeCompound } from 'replicad'
+import { setOC, draw, drawCircle, drawRectangle, makeCompound, measureVolume, measureArea } from 'replicad'
 import type { GearParameters } from './types'
 import { generateInvoluteProfile, generateRackProfile, calculateDimensions, getConjugatePinionParams } from './gearMath'
 import { getDIN6885Keyway } from './din6885'
@@ -26,7 +26,73 @@ async function initOC() {
   return ocLoadingPromise
 }
 
-function buildCylindricalGearSolid(gp: GearParameters): any {
+export interface StepQualityReport {
+  faces: number
+  solids: number
+  volumeMm3: number
+  areaMm2: number
+  bboxMm: [[number, number, number], [number, number, number]] | null
+  meshTris: number | null // sonda de teselado OC (solo modo exact, cuesta tiempo)
+  meshMs: number
+  ok: boolean
+  warnings: string[]
+}
+
+/**
+ * Control de calidad del sólido antes de serializar: topología (caras,
+ * sólidos), propiedades físicas (volumen > 0) y caja. Nunca rompe la
+ * exportación: cada métrica va en try/catch y los fallos van a warnings.
+ */
+function qualityReport(solid: any, probeMesh: boolean): StepQualityReport {
+  const warnings: string[] = []
+  let faces = 0
+  let solids = 0
+  let volumeMm3 = 0
+  let areaMm2 = 0
+  let bboxMm: StepQualityReport['bboxMm'] = null
+  let meshTris: number | null = null
+  const tMesh0 = Date.now()
+  try {
+    faces = solid.faces?.length ?? 0
+  } catch { warnings.push('faces: no legible') }
+  try {
+    solids = solid.solids?.length ?? 0
+  } catch { warnings.push('solids: no legible') }
+  try {
+    volumeMm3 = Number(measureVolume(solid).toFixed(2))
+  } catch { warnings.push('volume: no medible') }
+  try {
+    areaMm2 = Number(measureArea(solid).toFixed(2))
+  } catch { warnings.push('area: no medible') }
+  try {
+    const b = solid.boundingBox?.bounds
+    if (b) {
+      const r = (v: number) => Number(v.toFixed(2))
+      bboxMm = [[r(b[0][0]), r(b[0][1]), r(b[0][2])], [r(b[1][0]), r(b[1][1]), r(b[1][2])]]
+    }
+  } catch { warnings.push('bbox: no legible') }
+  if (probeMesh) {
+    try {
+      const m = solid.mesh()
+      meshTris = Math.round((m.triangles?.length ?? 0) / 3)
+    } catch { warnings.push('mesh probe: falló teselado OC') }
+  }
+  const meshMs = Date.now() - tMesh0
+  if (!(volumeMm3 > 0)) warnings.push('volumen no positivo: sólido sospechoso')
+  if (faces === 0) warnings.push('cero caras: sólido vacío')
+  return {
+    faces, solids, volumeMm3, areaMm2, bboxMm, meshTris, meshMs,
+    ok: volumeMm3 > 0 && faces > 0 && warnings.length === 0,
+    warnings,
+  }
+}
+
+export interface BuildOptions {
+  /** Callback de profiling: recibe el nombre de cada hito con timestamp interno. */
+  mark?: (name: string) => void
+}
+
+function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any {
   const dims = calculateDimensions(gp)
   const {
     gearType,
@@ -66,11 +132,17 @@ function buildCylindricalGearSolid(gp: GearParameters): any {
   } else if (gearType === 'herringbone') {
     const halfTwist = dims.twistAngleDeg / 2
     const halfB = faceWidth / 2
+    opts?.mark?.('hbExtrudeStart')
     const top: any = sketch.extrude(halfB, { twistAngle: halfTwist })
+    opts?.mark?.('hbExtrudeDone')
     const bottom: any = top.clone(true).mirror('XY')
-    // Se traslada en Z exactamente igual que la cremallera (+halfB) para que el vértice de la espiga (V)
+    opts?.mark?.('hbMirrorDone')
+    // Las mitades coinciden en el plano Z=0: compound sin booleano de fusión
+    // (el fuse de dos barridos helicoidales costaba ~16 s; verificado mismo volumen).
+    // Se traslada en Z (+halfB) para que el vértice de la espiga (V)
     // coincida en el plano central Z = halfB y los dientes queden perfectamente enfrentados y engranados.
-    solid = top.fuse(bottom).translate([0, 0, halfB])
+    solid = makeCompound([top, bottom]).translate([0, 0, halfB])
+    opts?.mark?.('hbJoinDone')
   }
 
   // Chaflán paramétrico a 45° en extremos axiales de los dientes (Z = 0 y Z = faceWidth)
@@ -297,54 +369,72 @@ self.onmessage = async (e: MessageEvent) => {
       await initOC()
       self.postMessage({ type: 'INIT_DONE' })
     } catch (err: any) {
-      self.postMessage({ type: 'ERROR', error: err.message || 'Error al iniciar OpenCASCADE' })
+      self.postMessage({ type: 'ERROR', error: err.message || 'Failed to initialize OpenCASCADE' })
     }
     return
   }
 
   if (type === 'EXPORT_STEP') {
+    const t0 = Date.now()
+    // Profiling por etapas: kernel (carga WASM) / build (sketch+booleanos) / encode (blobSTEP)
+    const stageMs: Record<string, number> = {}
+    const buildStartRef: { t: number } = { t: 0 }
+    let qcReport: StepQualityReport | null = null
+    const encodeStep = (solid: any): Blob => {
+      stageMs.encodeStart = Date.now()
+      // QC antes de serializar (siempre topología+volumen; sonda de teselado incluida)
+      qcReport = qualityReport(solid, true)
+      const blob = solid.blobSTEP()
+      stageMs.encodeDone = Date.now()
+      return blob
+    }
+    const buildOpts: BuildOptions = {
+      mark: (name: string) => {
+        stageMs[name] = Date.now()
+      },
+    }
     try {
       await initOC()
-      self.postMessage({ type: 'PROGRESS', progress: 45, message: 'Calculando geometría analítica B-Rep...' })
+      stageMs.kernelDone = Date.now()
+      self.postMessage({ type: 'PROGRESS', progress: 45, message: 'Computing analytical B-Rep geometry...' })
 
       const gearParams = params as GearParameters
       const dims = calculateDimensions(gearParams)
       const { gearType, faceWidth } = gearParams
+      stageMs.curvesDone = Date.now()
 
-      self.postMessage({ type: 'PROGRESS', progress: 60, message: 'Generando curvas de involuta exactas...' })
+      self.postMessage({ type: 'PROGRESS', progress: 60, message: 'Generating exact involute curves...' })
 
       let stepBlob: Blob
+      buildStartRef.t = Date.now()
 
       if (gearType === 'rack') {
         if (exportTarget === 'pinion') {
-          self.postMessage({ type: 'PROGRESS', progress: 70, message: 'Modelando piñón motriz conjugado...' })
+          self.postMessage({ type: 'PROGRESS', progress: 70, message: 'Modeling conjugate driving pinion...' })
           const pinionParams = getConjugatePinionParams(gearParams)
-          const pinionSolid = buildCylindricalGearSolid(pinionParams)
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
-          stepBlob = pinionSolid.blobSTEP()
+          const pinionSolid = buildCylindricalGearSolid(pinionParams, buildOpts)
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
+          stepBlob = encodeStep(pinionSolid)
         } else if (exportTarget === 'assembly') {
-          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modelando barra de cremallera...' })
+          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modeling rack bar...' })
           const rackSolid = buildRackSolid(gearParams)
 
-          self.postMessage({ type: 'PROGRESS', progress: 75, message: 'Modelando piñón motriz conjugado...' })
+          self.postMessage({ type: 'PROGRESS', progress: 75, message: 'Modeling conjugate driving pinion...' })
           const pinionParams = getConjugatePinionParams(gearParams)
-          const pinionSolid = buildCylindricalGearSolid(pinionParams)
+          const pinionSolid = buildCylindricalGearSolid(pinionParams, buildOpts)
 
           const pinionY = dims.pinionOperatingY || ((dims.circularPitch / Math.PI) * (gearParams.rackPinionTeeth || 20) / 2)
           const positionedPinion = pinionSolid.translate([0, pinionY, 0])
 
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Ensamblando conjunto multi-cuerpo STEP...' })
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Assembling multi-body STEP compound...' })
 
-          // Exportamos como verdadero ENSAMBLAJE STEP multi-cuerpo (TopoDS_Compound)
-          // sin fusionar los sólidos: Cada componente conserva su cuerpo sólido individual,
-          // y se exporta de forma instantánea (< 0.5s) sin el cuello de botella de proyección UV de AP242.
           const assemblyCompound = makeCompound([rackSolid, positionedPinion])
-          stepBlob = assemblyCompound.blobSTEP()
+          stepBlob = encodeStep(assemblyCompound)
         } else {
-          // Exportación estándar de solo la cremallera
+          // Standard export of rack bar only
           const rackSolid = buildRackSolid(gearParams)
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
-          stepBlob = rackSolid.blobSTEP()
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
+          stepBlob = encodeStep(rackSolid)
         }
       } else if (gearType === 'internal') {
         const contour = generateInvoluteProfile(gearParams, 8)
@@ -381,14 +471,14 @@ self.onmessage = async (e: MessageEvent) => {
           solid = solid.cut(makeCompound([topChamfer, botChamfer]))
         }
 
-        self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
+        self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
         stepBlob = solid.blobSTEP()
       } else {
         if (exportTarget === 'assembly') {
-          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modelando engranaje 1...' })
-          const solid1 = buildCylindricalGearSolid(gearParams)
+          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modeling gear 1...' })
+          const solid1 = buildCylindricalGearSolid(gearParams, buildOpts)
 
-          self.postMessage({ type: 'PROGRESS', progress: 78, message: 'Modelando engranaje 2 conjugado...' })
+          self.postMessage({ type: 'PROGRESS', progress: 78, message: 'Modeling conjugate gear 2...' })
           const z2 = gearParams.rackPinionTeeth || 24
           const pairDims = calculateDimensions(gearParams, z2)
           const centerDist = pairDims.centerDistance || (gearParams.module * (gearParams.teeth + z2) / 2)
@@ -401,27 +491,43 @@ self.onmessage = async (e: MessageEvent) => {
             boreDiameter: gearParams.boreDiameter > 0 ? Math.min(gearParams.boreDiameter, 14) : 0,
             hasKeyway: false,
           }
-          const solid2 = buildCylindricalGearSolid(gear2Params).translate([centerDist, 0, 0])
+          const solid2 = buildCylindricalGearSolid(gear2Params, buildOpts).translate([centerDist, 0, 0])
 
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Ensamblando conjunto multi-cuerpo STEP...' })
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Assembling multi-body STEP compound...' })
           const assemblyCompound = makeCompound([solid1, solid2])
-          stepBlob = assemblyCompound.blobSTEP()
+          stepBlob = encodeStep(assemblyCompound)
         } else {
-          const solid = buildCylindricalGearSolid(gearParams)
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Codificando entidades STEP ISO 10303...' })
-          stepBlob = solid.blobSTEP()
+          const solid = buildCylindricalGearSolid(gearParams, buildOpts)
+          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
+          stepBlob = encodeStep(solid)
         }
       }
 
+      const tEnd = Date.now()
+      const stages: Record<string, number> = {
+        kernelMs: (stageMs.kernelDone ?? t0) - t0,
+        curvesMs: (stageMs.curvesDone ?? t0) - (stageMs.kernelDone ?? t0),
+        buildMs: (stageMs.encodeStart ?? tEnd) - buildStartRef.t,
+        encodeMs: (stageMs.encodeDone ?? tEnd) - (stageMs.encodeStart ?? tEnd),
+        totalMs: tEnd - t0,
+      }
+      // Sub-etapas del herringbone (solo presentes en ese tipo)
+      if (stageMs.hbExtrudeStart !== undefined && stageMs.hbJoinDone !== undefined) {
+        stages.hbExtrudeMs = (stageMs.hbExtrudeDone ?? tEnd) - stageMs.hbExtrudeStart
+        stages.hbMirrorMs = (stageMs.hbMirrorDone ?? tEnd) - (stageMs.hbExtrudeDone ?? tEnd)
+        stages.hbJoinMs = stageMs.hbJoinDone - (stageMs.hbMirrorDone ?? tEnd)
+      }
       self.postMessage({
         type: 'STEP_READY',
         blob: stepBlob,
         sizeBytes: stepBlob.size,
-        fileName: fileName || `engranaje_${gearType}_m${gearParams.module}_z${gearParams.teeth}.step`,
+        fileName: fileName || `gear_${gearType}_m${gearParams.module}_z${gearParams.teeth}.step`,
+        stages,
+        quality: qcReport,
       })
     } catch (err: any) {
-      console.error('Error en Replicad Web Worker:', err)
-      self.postMessage({ type: 'ERROR', error: err.message || 'Error en la generación del archivo STEP' })
+      console.error('Error in Replicad Web Worker:', err)
+      self.postMessage({ type: 'ERROR', error: err.message || 'Error generating STEP file' })
     }
   }
 }

@@ -94,6 +94,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
     showCenterLine: true,
     animate: true,
     rpm: 25,
+    previewDeltaA: null,
   },
 
   viewSettings: {

@@ -204,7 +204,7 @@ export function buildFloorDimensions(
           { color: 0x0f172a, arrowSize: 3 }
         )
       )
-      const spriteL = createTextSprite(`L = ${rLen} mm`, 'Longitud Cremallera', true)
+      const spriteL = createTextSprite(`L = ${rLen} mm`, 'Rack Length', true)
       spriteL.position.set(0, dimY, floorZ + 0.8)
       group.add(spriteL)
 
@@ -219,13 +219,13 @@ export function buildFloorDimensions(
           { color: 0x64748b, arrowSize: 2.5 }
         )
       )
-      const spriteH = createTextSprite(`H = ${rH} mm`, 'Altura Base')
+      const spriteH = createTextSprite(`H = ${rH} mm`, 'Base Height')
       spriteH.position.set(dimX, -rH / 2, floorZ + 0.8)
       group.add(spriteH)
 
       // 3. Cota de Ancho / Espesor de Cara (b)
       const dimXRight = rLen / 2 + 18
-      const spriteB = createTextSprite(`b = ${fw} mm`, 'Espesor')
+      const spriteB = createTextSprite(`b = ${fw} mm`, 'Face Width')
       spriteB.position.set(dimXRight, -rH / 2, floorZ + 0.8)
       group.add(spriteB)
     }
@@ -253,7 +253,7 @@ export function buildFloorDimensions(
       )
       const spritePinion = createTextSprite(
         `Ø da = ${(pTipRadius * 2).toFixed(1)} mm`,
-        `Piñón (zp=${pTeeth}, d=${(pRadius * 2).toFixed(1)} mm)`,
+        `Pinion (zp=${pTeeth}, d=${(pRadius * 2).toFixed(1)} mm)`,
         true
       )
       spritePinion.position.set(0, pDimY, floorZ + 0.8)
@@ -271,8 +271,8 @@ export function buildFloorDimensions(
         )
       )
       const spriteMount = createTextSprite(
-        `Montaje = ${(rH + opY).toFixed(1)} mm`,
-        'Base a Eje Piñón'
+        `Mounting = ${(rH + opY).toFixed(1)} mm`,
+        'Base to Pinion Axis'
       )
       spriteMount.position.set(mX, (-rH + opY) / 2, floorZ + 0.8)
       group.add(spriteMount)
@@ -307,7 +307,7 @@ export function buildFloorDimensions(
       )
       const spriteDa = createTextSprite(
         `Ø da = ${da1.toFixed(1)} mm`,
-        `Exterior (z=${params.teeth})`,
+        `Tip / Outer (z=${params.teeth})`,
         true
       )
       spriteDa.position.set(0, dimYBottom, floorZ + 0.8)
@@ -326,7 +326,7 @@ export function buildFloorDimensions(
       )
       const spriteD = createTextSprite(
         `Ø d = ${d1.toFixed(1)} mm`,
-        `Primitivo (m=${params.module})`
+        `Pitch (m=${params.module})`
       )
       spriteD.position.set(0, dimYTop, floorZ + 0.8)
       group.add(spriteD)
@@ -344,14 +344,14 @@ export function buildFloorDimensions(
             { color: 0x0284c7, arrowSize: 2 }
           )
         )
-        const spriteBore = createTextSprite(`Ø eje = ${params.boreDiameter} mm`)
+        const spriteBore = createTextSprite(`Ø bore = ${params.boreDiameter} mm`)
         spriteBore.position.set(dimXBore, 0, floorZ + 0.8)
         group.add(spriteBore)
       }
 
       // 4. Cota Lateral Derecha: Espesor de Cara (b)
       const dimXFace = +(ra1 + 22)
-      const spriteFace = createTextSprite(`b = ${fw} mm`, 'Espesor')
+      const spriteFace = createTextSprite(`b = ${fw} mm`, 'Face Width')
       spriteFace.position.set(dimXFace, 0, floorZ + 0.8)
       group.add(spriteFace)
     } else {
@@ -361,7 +361,7 @@ export function buildFloorDimensions(
       const da2 = Number((d2 + 2 * params.module).toFixed(2))
       const ra2 = da2 / 2
       const r2 = d2 / 2
-      const centerDist = dims.centerDistance || (d1 + d2) / 2
+      const centerDist = (dims.centerDistance || (d1 + d2) / 2) + (meshingPair.previewDeltaA ?? 0)
 
       // Círculos proyectados del engranaje 2
       group.add(createCircleProjection(r2, new THREE.Vector3(centerDist, 0, floorZ), { color: 0x2563eb, dashed: true }))
@@ -381,7 +381,7 @@ export function buildFloorDimensions(
       )
       const spriteDist = createTextSprite(
         `a = ${centerDist.toFixed(1)} mm`,
-        'Distancia entre Centros',
+        'Center Distance',
         true
       )
       spriteDist.position.set(centerDist / 2, dimYTop, floorZ + 0.8)
@@ -400,7 +400,7 @@ export function buildFloorDimensions(
       )
       const spriteG1 = createTextSprite(
         `Ø d1 = ${d1.toFixed(1)} mm`,
-        `Engranaje 1 (z1=${params.teeth})`
+        `Gear 1 (z1=${params.teeth})`
       )
       spriteG1.position.set(0, dimYBot1, floorZ + 0.8)
       group.add(spriteG1)
@@ -418,7 +418,7 @@ export function buildFloorDimensions(
       )
       const spriteG2 = createTextSprite(
         `Ø d2 = ${d2.toFixed(1)} mm`,
-        `Engranaje 2 (z2=${z2})`
+        `Gear 2 (z2=${z2})`
       )
       spriteG2.position.set(centerDist, dimYBot2, floorZ + 0.8)
       group.add(spriteG2)

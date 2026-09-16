@@ -92,6 +92,7 @@ export interface MeshingPairParameters {
   showCenterLine: boolean // Mostrar línea y distancia entre centros
   animate: boolean        // Rotación continua
   rpm: number             // Velocidad de giro del engranaje 1 (RPM)
+  previewDeltaA: number | null // Calce de preview sobre la distancia (mm, null = estándar)
 }
 
 export interface CalculatedDimensions {
