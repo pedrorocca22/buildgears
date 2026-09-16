@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { runExport } from '../cad/exportService'
 import {
@@ -22,16 +22,6 @@ export const ExportModal: React.FC = () => {
   const [selectedAmount, setSelectedAmount] = useState<number | 'custom'>(5)
   const [customAmount, setCustomAmount] = useState<string>('15')
   const [hasDonated, setHasDonated] = useState<boolean>(false)
-
-  // Auto-cierre suave tras 3 segundos de éxito en la descarga
-  useEffect(() => {
-    if (exportStatus.progress === 100 && !exportStatus.isExporting && exportStatus.isModalOpen) {
-      const timer = setTimeout(() => {
-        closeExportModal()
-      }, 3200)
-      return () => clearTimeout(timer)
-    }
-  }, [exportStatus.progress, exportStatus.isExporting, exportStatus.isModalOpen, closeExportModal])
 
   if (!exportStatus.isModalOpen && !exportStatus.isExporting && exportStatus.progress !== 100 && !exportStatus.error) {
     return null
@@ -276,15 +266,15 @@ export const ExportModal: React.FC = () => {
             <h4 className="font-bold text-emerald-950 text-sm">
               ¡Archivo descargado con éxito!
             </h4>
-            <p className="text-xs text-emerald-700">
-              El archivo {format.toUpperCase()} ya está en tu carpeta de descargas. Esta ventana se cerrará automáticamente.
+            <p className="text-xs text-emerald-700 leading-relaxed">
+              El archivo {format.toUpperCase()} ya está en tu carpeta de descargas. Si BuildGears te ha ahorrado tiempo, ¡puedes invitar a un café arriba antes de salir!
             </p>
             <button
               type="button"
               onClick={closeExportModal}
-              className="mt-2 py-1.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
+              className="mt-2 py-2 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-colors"
             >
-              Cerrar ahora
+              Cerrar ventana
             </button>
           </div>
         ) : exportStatus.error ? (
