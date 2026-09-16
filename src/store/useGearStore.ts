@@ -29,6 +29,8 @@ interface GearStoreState {
   setMeshingPair: <K extends keyof MeshingPairParameters>(key: K, value: MeshingPairParameters[K]) => void
   setViewSetting: <K extends keyof ViewSettings>(key: K, value: ViewSettings[K]) => void
   setExportStatus: (status: Partial<ExportStatus>) => void
+  openExportModal: (format: 'stl' | '3mf' | 'step', target?: 'default' | 'rack' | 'pinion' | 'assembly') => void
+  closeExportModal: () => void
   loadPreset: (presetName: 'default_spur' | 'fast_helical' | 'heavy_herringbone' | 'spoke_drive' | 'planetary_sun' | 'precision_rack') => void
   resetCurrentGear: () => void
 }
@@ -109,6 +111,9 @@ export const useGearStore = create<GearStoreState>((set) => ({
     isExporting: false,
     progress: 0,
     message: '',
+    isModalOpen: false,
+    pendingFormat: 'step',
+    pendingTarget: 'default',
   },
 
   setActiveTopTab: (tab) =>
@@ -148,6 +153,32 @@ export const useGearStore = create<GearStoreState>((set) => ({
   setExportStatus: (status) =>
     set((state) => ({
       exportStatus: { ...state.exportStatus, ...status },
+    })),
+
+  openExportModal: (format, target = 'default') =>
+    set((state) => ({
+      exportStatus: {
+        ...state.exportStatus,
+        isModalOpen: true,
+        pendingFormat: format,
+        pendingTarget: target,
+        isExporting: false,
+        progress: 0,
+        message: '',
+        error: undefined,
+      },
+    })),
+
+  closeExportModal: () =>
+    set((state) => ({
+      exportStatus: {
+        ...state.exportStatus,
+        isModalOpen: false,
+        isExporting: false,
+        progress: 0,
+        message: '',
+        error: undefined,
+      },
     })),
 
   resetCurrentGear: () =>

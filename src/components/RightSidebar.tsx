@@ -2,10 +2,7 @@ import React from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { getDIN6885Keyway } from '../cad/din6885'
 import { getDIN912Screw } from '../cad/din912'
-import { calculateDimensions, getConjugatePinionParams } from '../cad/gearMath'
-import { exportGearToSTEP, downloadBlob } from '../cad/replicadClient'
-import { buildGearManifold } from '../cad/manifoldEngine'
-import confetti from 'canvas-confetti'
+import { calculateDimensions } from '../cad/gearMath'
 import {
   Cog,
   RotateCcw,
@@ -25,7 +22,7 @@ export const RightSidebar: React.FC = () => {
   const setMeshingPair = useGearStore((s) => s.setMeshingPair)
   const resetCurrentGear = useGearStore((s) => s.resetCurrentGear)
   const exportStatus = useGearStore((s) => s.exportStatus)
-  const setExportStatus = useGearStore((s) => s.setExportStatus)
+  const openExportModal = useGearStore((s) => s.openExportModal)
 
   const isHerringbone = params.gearType === 'herringbone' || (params.gearType === 'rack' && params.rackToothType === 'herringbone')
   const isHelical = params.gearType === 'helical' || params.gearType === 'herringbone' || (params.gearType === 'rack' && (params.rackToothType === 'helical' || params.rackToothType === 'herringbone'))
@@ -50,137 +47,17 @@ export const RightSidebar: React.FC = () => {
     bevel: 'Engranaje Cónico',
   }
 
-  // Exportar STEP con Replicad 1.1 + OpenCASCADE
-  const handleExportSTEP = async (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
-    try {
-      const targetLabel = target === 'assembly'
-        ? 'conjunto ensamblado'
-        : target === 'pinion'
-        ? 'piñón motriz'
-        : target === 'rack'
-        ? 'barra cremallera'
-        : 'engranaje'
-
-      setExportStatus({
-        isExporting: true,
-        progress: 10,
-        message: `Iniciando kernel OpenCASCADE para ${targetLabel}...`,
-        error: undefined,
-      })
-
-      const result = await exportGearToSTEP(
-        params,
-        (progress, message) => {
-          setExportStatus({ progress, message })
-        },
-        target
-      )
-
-      setExportStatus({
-        progress: 100,
-        message: '¡Modelo STEP generado con éxito!',
-        isExporting: false,
-      })
-
-      downloadBlob(result.blob, result.fileName)
-
-      confetti({
-        particleCount: 45,
-        spread: 55,
-        origin: { y: 0.85, x: 0.85 },
-      })
-    } catch (err: any) {
-      console.error('Error al exportar STEP:', err)
-      setExportStatus({
-        isExporting: false,
-        progress: 0,
-        message: 'Fallo al exportar STEP',
-        error: err.message || 'Error desconocido',
-      })
-    }
+  // Apertura del modal unificado de apoyo y descarga
+  const handleExportSTEP = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
+    openExportModal('step', target)
   }
 
-  // Exportar STL
-  const handleExportSTL = async (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
-    try {
-      setExportStatus({
-        isExporting: true,
-        progress: 40,
-        message: 'Generando malla STL desde Manifold-3D WASM...',
-      })
+  const handleExportSTL = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
+    openExportModal('stl', target)
+  }
 
-      let solid: any = null
-      let fileName = ''
-
-      if (isRack) {
-        if (target === 'pinion') {
-          const pParams = getConjugatePinionParams(params)
-          solid = await buildGearManifold(pParams)
-          fileName = `pinion_motriz_m${params.module}_z${params.rackPinionTeeth || 20}.stl`
-        } else if (target === 'assembly') {
-          const rackSolid = await buildGearManifold(params)
-          const pParams = getConjugatePinionParams(params)
-          const pinionSolid = await buildGearManifold(pParams)
-          const opY = dims.pinionOperatingY || ((dims.circularPitch / Math.PI) * (params.rackPinionTeeth || 20) / 2)
-          solid = rackSolid.add(pinionSolid.translate([0, opY, 0]))
-          fileName = `conjunto_cremallera_pinion_m${params.module}_zp${params.rackPinionTeeth || 20}.stl`
-        } else {
-          solid = await buildGearManifold(params)
-          fileName = `cremallera_${params.rackToothType || 'recta'}_m${params.module}_L${params.rackLength || 160}.stl`
-        }
-      } else {
-        solid = await buildGearManifold(params)
-        fileName = `engranaje_${params.gearType}_m${params.module}_z${params.teeth}.stl`
-      }
-
-      const mesh = solid.getMesh()
-      const numTri = mesh.numTri
-      const bufferSize = 84 + 50 * numTri
-      const buffer = new ArrayBuffer(bufferSize)
-      const view = new DataView(buffer)
-
-      for (let i = 0; i < 80; i++) view.setUint8(i, 32)
-      view.setUint32(80, numTri, true)
-
-      let offset = 84
-      for (let i = 0; i < numTri; i++) {
-        view.setFloat32(offset, 0, true)
-        view.setFloat32(offset + 4, 0, true)
-        view.setFloat32(offset + 8, 0, true)
-        offset += 12
-
-        for (let v = 0; v < 3; v++) {
-          const vertIdx = mesh.triVerts[i * 3 + v]
-          view.setFloat32(offset, mesh.vertProperties[vertIdx * 3], true)
-          view.setFloat32(offset + 4, mesh.vertProperties[vertIdx * 3 + 1], true)
-          view.setFloat32(offset + 8, mesh.vertProperties[vertIdx * 3 + 2], true)
-          offset += 12
-        }
-        view.setUint16(offset, 0, true)
-        offset += 2
-      }
-
-      const blob = new Blob([buffer], { type: 'application/octet-stream' })
-      downloadBlob(blob, fileName)
-
-      setExportStatus({
-        isExporting: false,
-        progress: 100,
-        message: `${fileName} descargado con éxito.`,
-      })
-
-      confetti({
-        particleCount: 30,
-        spread: 45,
-        origin: { y: 0.85, x: 0.85 },
-      })
-    } catch (err: any) {
-      setExportStatus({
-        isExporting: false,
-        progress: 0,
-        error: err.message || 'Error al exportar STL',
-      })
-    }
+  const handleExport3MF = (target: 'default' | 'rack' | 'pinion' | 'assembly' = 'default') => {
+    openExportModal('3mf', target)
   }
 
   return (
@@ -1743,7 +1620,7 @@ export const RightSidebar: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => handleExportSTL('default')}
+                onClick={() => handleExport3MF('default')}
                 className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-xs transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />

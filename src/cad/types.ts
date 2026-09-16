@@ -138,6 +138,9 @@ export interface ExportStatus {
   error?: string
   lastDownloadUrl?: string
   lastFileName?: string
+  isModalOpen?: boolean
+  pendingFormat?: 'stl' | '3mf' | 'step'
+  pendingTarget?: 'default' | 'rack' | 'pinion' | 'assembly'
 }
 
 
