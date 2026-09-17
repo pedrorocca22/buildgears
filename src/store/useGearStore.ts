@@ -16,7 +16,6 @@ export interface ViewSettings {
 }
 
 interface GearStoreState {
-  activeTopTab: 'design' | 'assembly'
   params: GearParameters
   gear1Params: GearParameters
   gear2Params: GearParameters
@@ -30,7 +29,6 @@ interface GearStoreState {
   exportStatus: ExportStatus
 
   // Acciones
-  setActiveTopTab: (tab: 'design' | 'assembly') => void
   selectGear: (id: 1 | 2) => void
   setGear2Enabled: (enabled: boolean) => void
   setMotorized: (motorized: boolean) => void
@@ -172,8 +170,6 @@ function adaptConjugateParams(
 }
 
 export const useGearStore = create<GearStoreState>((set) => ({
-  activeTopTab: 'design',
-
   params: defaultParams,
   gear1Params: defaultParams,
   gear2Params: defaultGear2Params,
@@ -211,19 +207,6 @@ export const useGearStore = create<GearStoreState>((set) => ({
     pendingFormat: 'step',
     pendingTarget: 'default',
   },
-
-  setActiveTopTab: (tab) =>
-    set((state) => {
-      const isAssembly = tab === 'assembly'
-      return {
-        activeTopTab: tab,
-        gear2Enabled: isAssembly ? true : state.gear2Enabled,
-        meshingPair: {
-          ...state.meshingPair,
-          enabled: isAssembly ? true : state.gear2Enabled,
-        },
-      }
-    }),
 
   selectGear: (id) =>
     set((state) => ({
