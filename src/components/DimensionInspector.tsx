@@ -12,13 +12,13 @@ export const DimensionInspector: React.FC = () => {
 
   const isRack = gear1Params.gearType === 'rack'
   const isPairActive = isRack ? (gear1Params.rackIncludePinion !== false) : gear2Enabled
-  const matingTeeth = isRack
+  const matingGear = isRack
     ? (gear1Params.rackPinionTeeth || 20)
     : isPairActive
-    ? (selectedGear === 1 ? gear2Params.teeth : gear1Params.teeth)
+    ? (selectedGear === 1 ? gear2Params : gear1Params)
     : undefined
 
-  const dims = calculateDimensions(params, matingTeeth)
+  const dims = calculateDimensions(params, matingGear)
 
   return (
     <div className="bg-white border-t border-slate-200 px-5 py-2.5 text-xs shrink-0 select-none">
@@ -124,6 +124,31 @@ export const DimensionInspector: React.FC = () => {
                 }`}
               />
               {dims.huntingToothStatus === 'optimal' ? 'Uniform Wear (gcd=1)' : `Repeat Cycle (gcd=${dims.gcdTeeth})`}
+            </span>
+          )}
+
+          {/* Physical Mesh Collision Alert */}
+          {dims.hasMeshInterference && (
+            <span
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-rose-600 text-white border border-rose-700 shadow-xs animate-pulse"
+              title={dims.meshInterferenceMessage}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+              Collision (+{dims.toothOverlapInterference}mm overlap)
+            </span>
+          )}
+
+          {/* Operating Center Distance aw */}
+          {dims.workingCenterDistanceOffset != null && Math.abs(dims.workingCenterDistanceOffset) > 0.01 && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full font-mono bg-blue-50 text-blue-800 border border-blue-200">
+              aw: {dims.workingCenterDistance} mm (Δa: {dims.workingCenterDistanceOffset > 0 ? `+${dims.workingCenterDistanceOffset}` : dims.workingCenterDistanceOffset} mm)
+            </span>
+          )}
+
+          {/* Hertz Contact Stress */}
+          {dims.hertzStressMPa != null && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full font-mono bg-slate-50 text-slate-700 border border-slate-200" title={`Hertz Contact Stress: ${dims.hertzStressMPa} MPa, Max sliding: ${dims.maxSlidingVelocity ?? 0.15} m/s`}>
+              σ_H: {dims.hertzStressMPa} MPa
             </span>
           )}
 
@@ -256,12 +281,20 @@ export const DimensionInspector: React.FC = () => {
             </div>
 
             {meshingPair.enabled ? (
-              <div className="bg-orange-50/70 p-2 rounded-lg border border-orange-200">
-                <div className="text-orange-700 text-[10px] font-semibold">
-                  <span>Center Distance (a{(meshingPair.previewDeltaA ?? 0) !== 0 ? ' + preview' : ''})</span>
+              <div className={`p-2 rounded-lg border ${
+                dims.hasMeshInterference
+                  ? 'bg-rose-50 border-rose-300 text-rose-950'
+                  : 'bg-orange-50/70 border-orange-200'
+              }`}>
+                <div className={`${dims.hasMeshInterference ? 'text-rose-700 font-bold' : 'text-orange-700'} text-[10px] font-semibold flex items-center justify-between`}>
+                  <span>{dims.workingCenterDistanceOffset && Math.abs(dims.workingCenterDistanceOffset) > 0.01 ? 'Dist. Operativa (aw)' : 'Center Dist (a)'}</span>
+                  {dims.hasMeshInterference && <span className="text-[8.5px] bg-rose-600 text-white px-1 rounded font-bold animate-pulse">COLLISION</span>}
                 </div>
-                <div className="text-xs font-mono font-bold text-orange-900 mt-0.5">
-                  {dims.centerDistance != null ? (dims.centerDistance + (meshingPair.previewDeltaA ?? 0)).toFixed(3) : '—'} <span className="text-[10px] font-normal">mm</span>
+                <div className={`text-xs font-mono font-bold ${dims.hasMeshInterference ? 'text-rose-950' : 'text-orange-900'} mt-0.5`}>
+                  {(dims.workingCenterDistance || dims.centerDistance != null)
+                    ? ((dims.workingCenterDistance || dims.centerDistance!) + (meshingPair.previewDeltaA ?? 0)).toFixed(3)
+                    : '—'}{' '}
+                  <span className="text-[10px] font-normal">mm</span>
                 </div>
               </div>
             ) : (

@@ -1,8 +1,29 @@
 import type { GearParameters, CalculatedDimensions } from './types'
 
+/**
+ * Resuelve la función de involuta inversa inv(alpha) = tan(alpha) - alpha = invVal
+ * utilizando el método de Newton-Raphson de convergencia de orden superior.
+ * Retorna el ángulo alpha en radianes con precisión absoluta < 1e-12.
+ */
+export function solveInvolute(invVal: number): number {
+  if (invVal <= 0) return 0
+  // Aproximación inicial cúbica: inv(alpha) ≈ alpha^3 / 3 => alpha ≈ (3 * invVal)^(1/3)
+  let alpha = Math.cbrt(3 * invVal)
+  for (let i = 0; i < 8; i++) {
+    const tanA = Math.tan(alpha)
+    const f = tanA - alpha - invVal
+    const fPrime = tanA * tanA // d/dalpha (tan(alpha) - alpha) = sec^2(alpha) - 1 = tan^2(alpha)
+    if (Math.abs(fPrime) < 1e-12) break
+    const delta = f / fPrime
+    alpha -= delta
+    if (Math.abs(delta) < 1e-12) break
+  }
+  return alpha
+}
+
 export function calculateDimensions(
   params: GearParameters,
-  teeth2?: number
+  mating?: number | Partial<GearParameters>
 ): CalculatedDimensions {
   const {
     module: mn,
@@ -13,6 +34,12 @@ export function calculateDimensions(
     faceWidth: b,
     gearType,
   } = params
+
+  const matingTeeth = typeof mating === 'number' ? mating : mating?.teeth
+  const matingShift = typeof mating === 'object' && mating != null ? (mating.profileShift ?? 0.0) : 0.0
+  const matingHaCoeff = typeof mating === 'object' && mating != null ? (mating.addendumCoeff ?? 1.0) : 1.0
+  const matingHfCoeff = typeof mating === 'object' && mating != null ? (mating.dedendumCoeff ?? 1.25) : 1.25
+  const teeth2 = matingTeeth
 
   // Determinar coeficientes según el tipo de diseño de diente (norma de perfil)
   let haCoeff = params.addendumCoeff ?? 1.0
@@ -118,7 +145,7 @@ export function calculateDimensions(
     topLandStatus = topLandThickness >= minRecommendedTopLand ? 'safe' : topLandThickness >= 0.12 * mn ? 'warning' : 'critical'
   }
 
-  // 2. Ratio de contacto (Contact Ratio eps_alpha, eps_beta, eps_gamma)
+  // 2. Variables cinemáticas conjugadas
   let contactRatio: number | undefined = undefined
   let contactRatioStatus: 'optimal' | 'acceptable' | 'marginal' | 'critical' | undefined = undefined
   let overlapRatio: number | undefined = undefined
@@ -127,6 +154,17 @@ export function calculateDimensions(
   const pbt = Math.PI * mt * Math.cos(alphaT) // Paso base aparente
 
   let centerDistance: number | undefined = undefined
+  let workingCenterDistance: number | undefined = undefined
+  let workingCenterDistanceOffset: number | undefined = undefined
+  let operatingPressureAngleDeg: number | undefined = undefined
+  let operatingPitchRadius1: number | undefined = undefined
+  let operatingPitchRadius2: number | undefined = undefined
+  let bottomClearance: number | undefined = undefined
+  let toothOverlapInterference: number | undefined = undefined
+  let hasMeshInterference = false
+  let meshInterferenceMessage: string | undefined = undefined
+  let hertzStressMPa: number | undefined = undefined
+  let maxSlidingVelocity: number | undefined = undefined
   let gearRatio: number | undefined = undefined
 
   // Métricas específicas si es mecanismo de cremallera y piñón
@@ -136,7 +174,7 @@ export function calculateDimensions(
   const rackTotalHeight = rHeight + ha
 
   const pTeeth = params.rackPinionTeeth || (teeth2 && teeth2 > 0 ? teeth2 : 20)
-  const xp = params.rackPinionProfileShift || 0.0
+  const xp = params.rackPinionProfileShift ?? matingShift ?? 0.0
   const pinionPitchRadius = Number(((mt * pTeeth) / 2).toFixed(3))
   const pinionTipRadius = Number((pinionPitchRadius + (haCoeff + xp) * mn).toFixed(3))
   const pinionRootRadius = Number(Math.max(0.5, pinionPitchRadius - (hfCoeff - xp) * mn).toFixed(3))
@@ -153,6 +191,9 @@ export function calculateDimensions(
 
   if (gearType === 'rack') {
     centerDistance = pinionOperatingY
+    workingCenterDistance = pinionOperatingY
+    workingCenterDistanceOffset = Number((xp * mn).toFixed(3))
+    operatingPressureAngleDeg = alphaDeg
     gearRatio = pTeeth
 
     // Contact ratio para piñón y cremallera:
@@ -162,38 +203,114 @@ export function calculateDimensions(
     const termRack = (haCoeff * mn) / Math.max(0.01, Math.sin(alphaT))
     const gAlpha = termPinion + termRack
     contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
+
+    bottomClearance = Number((rHeight - pinionTipRadius).toFixed(3))
   } else if (teeth2 && teeth2 > 0) {
     const z2 = teeth2
+    const x2 = matingShift
     const rp2 = (mt * z2) / 2
     const rb2 = rp2 * Math.cos(alphaT)
-    const ha2 = haCoeff * mn
+    const ha2 = (matingHaCoeff + x2) * mn
+    const hf2 = (matingHfCoeff - x2) * mn
     const ra2 = rp2 + ha2
+    const rf2 = Math.max(0.5, rp2 - hf2)
 
     if (gearType === 'internal') {
-      centerDistance = Math.abs((mt * (z - teeth2)) / 2)
+      const aNominal = Math.abs((mt * (z - teeth2)) / 2)
+      centerDistance = aNominal
       gearRatio = teeth2 / z
 
-      // Para corona interior con piñón:
-      // La corona tiene sus dientes hacia adentro: el radio de cresta es menor al de rodadura: ra_int = rp - ha
+      const invAlphaT = Math.tan(alphaT) - alphaT
+      const sumX = x - x2
+      const invAlphaWt = invAlphaT + (2 * sumX / Math.max(1, z - z2)) * Math.tan(alphaRad)
+      const alphaWt = invAlphaWt > 0 ? solveInvolute(invAlphaWt) : alphaT
+      const cosAlphaWt = Math.cos(alphaWt)
+      const aWorking = cosAlphaWt > 0.01 ? (aNominal * Math.cos(alphaT)) / cosAlphaWt : aNominal
+
+      workingCenterDistance = Number(aWorking.toFixed(3))
+      workingCenterDistanceOffset = Number((aWorking - aNominal).toFixed(3))
+      operatingPressureAngleDeg = Number(((alphaWt * 180) / Math.PI).toFixed(2))
+      operatingPitchRadius1 = Number((aWorking * (z / Math.max(1, z - z2))).toFixed(3))
+      operatingPitchRadius2 = Number((aWorking * (z2 / Math.max(1, z - z2))).toFixed(3))
+
       const raInternal = Math.max(0.5, rp - ha)
       const gAlpha = Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) -
                      Math.sqrt(Math.max(0, raInternal * raInternal - rb * rb)) +
-                     (rp - rp2) * Math.sin(alphaT)
+                     (rp - rp2) * Math.sin(alphaWt)
       contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
+      bottomClearance = Number((rp - ha - rf2).toFixed(3))
     } else {
-      centerDistance = (mt * (z + teeth2)) / 2
+      const aNominal = (mt * (z + teeth2)) / 2
+      centerDistance = aNominal
       gearRatio = teeth2 / z
 
-      // Engranajes cilíndricos exteriores estándar:
+      // Cinemática operativa según ISO 21771 / DIN 3960
+      const invAlphaT = Math.tan(alphaT) - alphaT
+      const sumX = x + x2
+      const invAlphaWt = invAlphaT + (2 * sumX / (z + z2)) * Math.tan(alphaRad)
+      const alphaWt = invAlphaWt > 0 ? solveInvolute(invAlphaWt) : alphaT
+      const cosAlphaWt = Math.cos(alphaWt)
+      const aWorking = cosAlphaWt > 0.01 ? (aNominal * Math.cos(alphaT)) / cosAlphaWt : aNominal
+
+      workingCenterDistance = Number(aWorking.toFixed(3))
+      workingCenterDistanceOffset = Number((aWorking - aNominal).toFixed(3))
+      operatingPressureAngleDeg = Number(((alphaWt * 180) / Math.PI).toFixed(2))
+      operatingPitchRadius1 = Number((aWorking * (z / (z + z2))).toFixed(3))
+      operatingPitchRadius2 = Number((aWorking * (z2 / (z + z2))).toFixed(3))
+
+      // Trayectoria activa de contacto g_alpha y ratio de contacto operativo:
       const gAlpha = Math.sqrt(Math.max(0, ra * ra - rb * rb)) +
                      Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) -
-                     (rp + rp2) * Math.sin(alphaT)
+                     aWorking * Math.sin(alphaWt)
       contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
+
+      // Holguras de fondo:
+      const cNom1 = aNominal - ra - rf2
+      const cNom2 = aNominal - ra2 - rf
+      const cWork1 = aWorking - ra - rf2
+      const cWork2 = aWorking - ra2 - rf
+
+      // Espesores de diente y solapamiento circunferencial en primitivo nominal:
+      const backlash = params.backlash ?? 0.05
+      const st1 = (mn * (Math.PI / 2 + 2 * x * Math.tan(alphaRad)) - backlash / 2) / (betaRad !== 0 ? Math.cos(betaRad) : 1)
+      const st2 = (mn * (Math.PI / 2 + 2 * x2 * Math.tan(alphaRad)) - backlash / 2) / (betaRad !== 0 ? Math.cos(betaRad) : 1)
+      const pitchOverlap = (st1 + st2) - circularPitch
+
+      // Detección de interferencia y colisión física:
+      // Si sumX > 0 y los engranajes se posicionan rígidamente a la distancia nominal a:
+      if (pitchOverlap > 0.02 || cNom1 < 0.02 * mn || cNom2 < 0.02 * mn) {
+        hasMeshInterference = true
+        toothOverlapInterference = Math.max(0, Number(pitchOverlap.toFixed(3)))
+        bottomClearance = Number(Math.min(cNom1, cNom2).toFixed(3))
+        meshInterferenceMessage = `Penetración física detectada: Solapamiento de flancos Δs = +${Math.max(0, pitchOverlap).toFixed(2)} mm y holgura de fondo c = ${Math.min(cNom1, cNom2).toFixed(2)} mm. Requiere compensar V-0 (x2 = -${x.toFixed(2)}) o montar a distancia operativa aw = ${aWorking.toFixed(2)} mm.`
+      } else {
+        bottomClearance = Number(Math.min(cWork1, cWork2).toFixed(3))
+        toothOverlapInterference = 0
+      }
+
+      // Estimación de esfuerzo de contacto de Hertz (ISO 6336 simplificado):
+      const torqueRef = 50 // N·m de referencia estándar
+      const ftNom = (2 * torqueRef) / (Math.max(0.01, d) / 1000) // N
+      const u = z2 / z
+      const zH = Math.sqrt(Math.max(0.1, (2 * Math.cos(betaRad)) / Math.max(0.01, Math.sin(2 * alphaWt))))
+      const zE = 189.8 // sqrt(MPa) para acero/acero
+      const zEps = Math.sqrt(Math.max(0.1, (4 - Math.min(2.5, contactRatio ?? 1.4)) / 3))
+      const zBeta = Math.sqrt(Math.cos(betaRad))
+      const bEff = Math.max(5, b)
+      const hertzCalc = zH * zE * zEps * zBeta * Math.sqrt(Math.max(0, (ftNom / (bEff * (d / 2) * 2)) * ((u + 1) / u)))
+      hertzStressMPa = Number(Math.min(2500, Math.max(50, hertzCalc)).toFixed(0))
+
+      // Velocidad máxima de deslizamiento relativo en cresta a 25 RPM:
+      const omega1 = (25 * 2 * Math.PI) / 60
+      const vSlideCalc = (omega1 / 1000) * Math.abs(Math.sqrt(Math.max(0, ra * ra - rb * rb)) - (operatingPitchRadius1 || rp) * Math.sin(alphaWt)) * (1 + z / z2)
+      maxSlidingVelocity = Number(vSlideCalc.toFixed(2))
     }
   }
 
   if (contactRatio != null) {
-    if (contactRatio >= 1.4) {
+    if (hasMeshInterference) {
+      contactRatioStatus = 'critical'
+    } else if (contactRatio >= 1.4) {
       contactRatioStatus = 'optimal'
     } else if (contactRatio >= 1.2) {
       contactRatioStatus = 'acceptable'
@@ -257,6 +374,19 @@ export function calculateDimensions(
     internalInterferenceWarning,
     huntingToothStatus,
     gcdTeeth,
+
+    // Cinemática operativa ISO 21771 / DIN 3960 y colisión
+    workingCenterDistance,
+    workingCenterDistanceOffset,
+    operatingPressureAngleDeg,
+    operatingPitchRadius1,
+    operatingPitchRadius2,
+    bottomClearance,
+    toothOverlapInterference,
+    hasMeshInterference,
+    meshInterferenceMessage,
+    hertzStressMPa,
+    maxSlidingVelocity,
 
     rackToothCount,
     rackTotalHeight: Number(rackTotalHeight.toFixed(3)),

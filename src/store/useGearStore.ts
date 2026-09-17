@@ -10,6 +10,7 @@ export interface ViewSettings {
   flatColor: FlatColor
   showDimensions: boolean
   showContactZone: boolean
+  showContactHeatmap: boolean
   sectionCut: boolean
   sectionPosition: number // -1 a 1
   cameraView: 'iso' | 'front' | 'top' | 'left' | 'right'
@@ -52,6 +53,7 @@ interface GearStoreState {
   openExportModal: (format: 'stl' | '3mf' | 'step', target?: 'default' | 'rack' | 'pinion' | 'assembly') => void
   closeExportModal: () => void
   loadPreset: (presetName: 'default_spur' | 'fast_helical' | 'heavy_herringbone' | 'spoke_drive' | 'planetary_sun' | 'precision_rack') => void
+  autoCompensateProfileShift: () => void
   resetCurrentGear: () => void
   resetAllGearConfigs: () => void
 }
@@ -477,6 +479,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
     flatColor: 'mustard',
     showDimensions: false,
     showContactZone: true,
+    showContactHeatmap: false,
     sectionCut: false,
     sectionPosition: 0,
     cameraView: 'iso',
@@ -1015,5 +1018,24 @@ export const useGearStore = create<GearStoreState>((set) => ({
       }
     })
   },
+
+  autoCompensateProfileShift: () =>
+    set((state) => {
+      if (!state.gear2Enabled || state.gear1Params.gearType === 'rack') return state
+      const targetShift = Number((-state.gear1Params.profileShift).toFixed(2))
+      const newG2 = { ...state.gear2Params, profileShift: targetShift }
+      const currentType = state.gear1Params.gearType
+      return {
+        gear2Params: newG2,
+        params: state.selectedGear === 2 ? newG2 : state.gear1Params,
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            ...state.gearTypeConfigs[currentType],
+            gear2Params: newG2,
+          },
+        },
+      }
+    }),
 }))
 

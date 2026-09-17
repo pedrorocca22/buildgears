@@ -133,6 +133,21 @@ export interface CalculatedDimensions {
   huntingToothStatus?: 'optimal' | 'cyclic' // 'optimal' si gcd(z1, z2) = 1 (desgaste uniforme)
   gcdTeeth?: number           // Máximo común divisor de dientes
 
+  // Cinemática operativa con desplazamiento de perfil (ISO 21771 / DIN 3960)
+  workingCenterDistance?: number // Distancia entre centros operativa a_w (mm)
+  workingCenterDistanceOffset?: number // Variación respecto al nominal Δa = a_w - a (mm)
+  operatingPressureAngleDeg?: number // Ángulo de presión operativo α_wt (grados)
+  operatingPitchRadius1?: number // Radio primitivo operativo r_w1 (mm)
+  operatingPitchRadius2?: number // Radio primitivo operativo r_w2 (mm)
+  bottomClearance?: number    // Holgura de fondo c (mm)
+  toothOverlapInterference?: number // Solapamiento circunferencial de dientes Δs (mm, > 0 es colisión)
+  hasMeshInterference?: boolean // true si c < 0 ó Δs > 0 (colisión física entre dientes)
+  meshInterferenceMessage?: string // Explicación técnica de la colisión física
+
+  // Esfuerzo de contacto Hertz y deslizamiento relativo (ISO 6336)
+  hertzStressMPa?: number     // Esfuerzo de contacto de Hertz estimado σ_H (MPa)
+  maxSlidingVelocity?: number // Velocidad máxima de deslizamiento en cresta v_slide (m/s)
+
   // Métricas específicas de mecanismo de cremallera y piñón
   rackToothCount?: number     // Dientes útiles mecanizados en la longitud
   rackTotalHeight?: number    // Altura total hasta cresta de diente

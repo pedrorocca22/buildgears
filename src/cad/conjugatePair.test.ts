@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useGearStore } from '../store/useGearStore'
-import { calculateDimensions, getConjugatePinionParams } from './gearMath'
+import { calculateDimensions, getConjugatePinionParams, solveInvolute } from './gearMath'
 
 describe('Dual Gear Conjugate System & Motorization', () => {
   beforeEach(() => {
@@ -386,5 +386,83 @@ describe('Dual Gear Conjugate System & Motorization', () => {
     dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
     expect(dims.gcdTeeth).toBe(8)
     expect(dims.huntingToothStatus).toBe('cyclic')
+  })
+
+  it('solves inverse involute function with high precision using Newton-Raphson', () => {
+    // inv(20 deg) = tan(20 deg) - 20 deg in radians ≈ 0.01490438
+    const alpha20Rad = (20 * Math.PI) / 180
+    const inv20 = Math.tan(alpha20Rad) - alpha20Rad
+    const solved = solveInvolute(inv20)
+    expect(solved).toBeCloseTo(alpha20Rad, 8)
+
+    // inv(25 deg) ≈ 0.029975
+    const alpha25Rad = (25 * Math.PI) / 180
+    const inv25 = Math.tan(alpha25Rad) - alpha25Rad
+    expect(solveInvolute(inv25)).toBeCloseTo(alpha25Rad, 8)
+  })
+
+  it('calculates ISO 21771 operating center distance aw and operating pressure angle alpha_wt', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearType('spur')
+    store.setGear2Enabled(true)
+
+    // Baseline: x1 = 0, x2 = 0 -> aw = a = 53.75 mm, alpha_wt = 20 deg
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params, state.gear2Params)
+    expect(dims.centerDistance).toBeCloseTo(53.75, 2)
+    expect(dims.workingCenterDistance).toBeCloseTo(53.75, 2)
+    expect(dims.operatingPressureAngleDeg).toBeCloseTo(20.0, 1)
+
+    // Shift x1 = +0.6, x2 = 0 -> aw > a, alpha_wt > 20 deg
+    store.setGearParam('profileShift', 0.6)
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params, state.gear2Params)
+    expect(dims.workingCenterDistance).toBeGreaterThan(dims.centerDistance!)
+    expect(dims.operatingPressureAngleDeg).toBeGreaterThan(20.0)
+    expect(dims.workingCenterDistanceOffset).toBeGreaterThan(0)
+  })
+
+  it('detects physical tooth overlap and negative clearance when x1 is high and x2=0, marking status critical (never optimal)', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearType('spur')
+    store.setGear2Enabled(true)
+
+    // Max profile shift x1 = +0.8, x2 = 0.0 without center separation causes physical interference!
+    store.setGearParam('profileShift', 0.8)
+    const state = useGearStore.getState()
+    const dims = calculateDimensions(state.gear1Params, state.gear2Params)
+
+    // Interference MUST be detected
+    expect(dims.hasMeshInterference).toBe(true)
+    expect(dims.toothOverlapInterference).toBeGreaterThan(0.5) // Overlap > 0.5 mm
+    expect(dims.bottomClearance).toBeLessThan(0) // Negative clearance (tip hits root)
+    expect(dims.contactRatioStatus).toBe('critical') // MUST NEVER BE 'optimal'
+    expect(dims.meshInterferenceMessage).toContain('Penetración física detectada')
+  })
+
+  it('restores perfect zero-interference V-0 mesh when autoCompensateProfileShift is called', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearType('spur')
+    store.setGear2Enabled(true)
+
+    // User applies x1 = +0.50
+    store.setGearParam('profileShift', 0.5)
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params, state.gear2Params)
+    expect(dims.hasMeshInterference).toBe(true)
+
+    // One-click auto compensation V-0 (x2 = -0.50)
+    store.autoCompensateProfileShift()
+    state = useGearStore.getState()
+    expect(state.gear2Params.profileShift).toBe(-0.5)
+
+    // Mesh is now perfectly balanced at standard center distance
+    dims = calculateDimensions(state.gear1Params, state.gear2Params)
+    expect(dims.hasMeshInterference).toBe(false)
+    expect(dims.toothOverlapInterference).toBe(0)
+    expect(dims.bottomClearance).toBeGreaterThan(0)
   })
 })

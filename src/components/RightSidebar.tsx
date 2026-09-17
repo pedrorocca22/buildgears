@@ -19,6 +19,7 @@ export const RightSidebar: React.FC = () => {
   const setGearParam = useGearStore((s) => s.setGearParam)
   const setGearParams = useGearStore((s) => s.setGearParams)
   const resetCurrentGear = useGearStore((s) => s.resetCurrentGear)
+  const autoCompensateProfileShift = useGearStore((s) => s.autoCompensateProfileShift)
   const exportStatus = useGearStore((s) => s.exportStatus)
   const openExportModal = useGearStore((s) => s.openExportModal)
 
@@ -30,22 +31,24 @@ export const RightSidebar: React.FC = () => {
   const pinionKeyway = getDIN6885Keyway(params.rackPinionBore && params.rackPinionBore > 0 ? params.rackPinionBore : 14)
   const dinScrew = getDIN912Screw(params.rackScrewStandard || 'M5')
 
-  const matingTeeth = isRack
+  const matingGear = isRack
     ? (gear1Params.rackPinionTeeth || 20)
     : isPairActive
-    ? (selectedGear === 1 ? gear2Params.teeth : gear1Params.teeth)
+    ? (selectedGear === 1 ? gear2Params : gear1Params)
     : undefined
-  const dims = calculateDimensions(params, matingTeeth)
+  const dims = calculateDimensions(params, matingGear)
 
   const effBeta = (params.gearType === 'helical' || params.gearType === 'herringbone') && params.helixAngle ? params.helixAngle : 0
   const betaRad = (effBeta * Math.PI) / 180
   const mt = betaRad !== 0 ? params.module / Math.cos(betaRad) : params.module
   const isInternal = gear1Params.gearType === 'internal'
-  const centerDistance = gear2Enabled
+  const nominalCenterDistance = gear2Enabled
     ? (isInternal
         ? Math.abs((mt * (gear1Params.teeth - gear2Params.teeth)) / 2)
         : (mt * (gear1Params.teeth + gear2Params.teeth)) / 2)
     : 0
+  const workingCenterDistance = dims.workingCenterDistance || nominalCenterDistance
+  const centerDistance = workingCenterDistance
   const gearRatio = gear2Enabled && gear1Params.teeth > 0 ? gear2Params.teeth / gear1Params.teeth : 1
   const speedG1 = motorRpm
   const speedG2 = gear2Enabled && gear2Params.teeth > 0 ? Number(((motorRpm * gear1Params.teeth) / gear2Params.teeth).toFixed(1)) : 0
@@ -193,26 +196,61 @@ export const RightSidebar: React.FC = () => {
                 </div>
 
                 {/* Conjugate Mesh Lock & Metrics Card */}
-                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
+                <div className={`border rounded-xl p-2.5 space-y-2 transition-colors ${
+                  dims.hasMeshInterference
+                    ? 'bg-rose-50/50 border-rose-300 shadow-xs'
+                    : 'bg-slate-50 border-slate-200/80'
+                }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] font-bold text-emerald-800">
-                        Conjugate Mesh Locked
+                      <span className={`inline-block w-2 h-2 rounded-full ${
+                        dims.hasMeshInterference ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'
+                      }`} />
+                      <span className={`text-[10px] font-bold ${
+                        dims.hasMeshInterference ? 'text-rose-800' : 'text-emerald-800'
+                      }`}>
+                        {dims.hasMeshInterference ? 'Severe Mesh Interference' : 'Conjugate Mesh Locked'}
                       </span>
                     </div>
                     <span className="text-[9px] text-slate-400 font-mono">
-                      Module & Involute Synced
+                      {dims.operatingPressureAngleDeg ? `α_w = ${dims.operatingPressureAngleDeg}°` : 'ISO Synced'}
                     </span>
                   </div>
 
+                  {/* Physical Collision Warning & Auto-Fix */}
+                  {dims.hasMeshInterference && (
+                    <div className="p-2 rounded-lg bg-rose-100/80 border border-rose-300/80 text-rose-950 text-[10px] space-y-1.5">
+                      <div className="font-bold flex items-center gap-1 text-rose-800">
+                        <span>⚠️</span> Colisión Física de Dientes
+                      </div>
+                      <p className="text-[9.5px] text-rose-900 leading-snug">
+                        Solapamiento circunferencial: <strong className="font-mono">+{dims.toothOverlapInterference} mm</strong>.
+                        Holgura de fondo: <strong className="font-mono">{dims.bottomClearance} mm</strong>.
+                        Los perfiles penetran físicamente dentro del material compañero.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => autoCompensateProfileShift()}
+                        className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors flex items-center justify-center gap-1"
+                      >
+                        <span>⚡ Auto-compensar V-cero (x2 = -{params.profileShift.toFixed(2)})</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                     <div className="bg-white p-2 rounded-lg border border-slate-200/60">
-                      <div className="text-[9px] text-slate-400">Center Distance (a):</div>
+                      <div className="text-[9px] text-slate-400">
+                        {dims.workingCenterDistanceOffset && Math.abs(dims.workingCenterDistanceOffset) > 0.01 ? 'Operating Dist (aw):' : 'Center Distance (a):'}
+                      </div>
                       <div className="font-extrabold text-slate-900 text-sm">
                         {centerDistance.toFixed(2)} mm
                       </div>
-                      <div className="text-[8.5px] text-slate-400">Perfect tangency</div>
+                      <div className="text-[8.5px] text-slate-400">
+                        {dims.workingCenterDistanceOffset && Math.abs(dims.workingCenterDistanceOffset) > 0.01
+                          ? `Nominal: ${nominalCenterDistance.toFixed(2)} mm`
+                          : 'Standard pitch mesh'}
+                      </div>
                     </div>
 
                     <div className="bg-white p-2 rounded-lg border border-slate-200/60">
@@ -227,7 +265,9 @@ export const RightSidebar: React.FC = () => {
                   {/* Contact Ratio & Hunting Tooth Kinematics */}
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
                     <div className={`p-2 rounded-lg border ${
-                      dims.contactRatioStatus === 'optimal'
+                      dims.hasMeshInterference
+                        ? 'bg-rose-100/90 border-rose-300 text-rose-950'
+                        : dims.contactRatioStatus === 'optimal'
                         ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
                         : dims.contactRatioStatus === 'acceptable'
                         ? 'bg-teal-50/70 border-teal-200 text-teal-950'
@@ -239,11 +279,15 @@ export const RightSidebar: React.FC = () => {
                       <div className="font-extrabold text-sm flex items-center gap-1">
                         <span>{dims.contactRatio ?? '—'}</span>
                         <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-white/80 border border-current/20">
-                          {dims.contactRatioStatus || '—'}
+                          {dims.hasMeshInterference ? 'COLLISION' : dims.contactRatioStatus || '—'}
                         </span>
                       </div>
-                      <div className="text-[8.5px] opacity-70">
-                        {dims.contactRatioStatus === 'optimal' ? 'Smooth tooth handover' : 'Min limit: 1.2'}
+                      <div className="text-[8.5px] opacity-80 leading-tight">
+                        {dims.hasMeshInterference
+                          ? `Overlap +${dims.toothOverlapInterference}mm`
+                          : dims.contactRatioStatus === 'optimal'
+                          ? 'Smooth tooth handover'
+                          : 'Min limit: 1.2'}
                       </div>
                     </div>
 
@@ -258,6 +302,32 @@ export const RightSidebar: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Hertz Contact Stress & Sliding Velocity (ISO 6336) */}
+                  {dims.hertzStressMPa != null && (
+                    <div className="bg-white p-2 rounded-lg border border-slate-200/60 space-y-1 text-xs font-mono">
+                      <div className="flex justify-between items-center text-[9px] text-slate-500">
+                        <span>Hertz Contact Stress (σ_H):</span>
+                        <span className="font-bold text-slate-900">{dims.hertzStressMPa} MPa</span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            dims.hasMeshInterference
+                              ? 'bg-rose-500'
+                              : dims.hertzStressMPa > 1200
+                              ? 'bg-amber-500'
+                              : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(100, (dims.hertzStressMPa / 1500) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[8.5px] text-slate-400">
+                        <span>Max sliding: {dims.maxSlidingVelocity ?? 0.15} m/s</span>
+                        <span>{dims.hertzStressMPa < 1000 ? 'Safe surface load' : 'High stress'}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Motorization Controls */}
@@ -642,6 +712,26 @@ export const RightSidebar: React.FC = () => {
                       className="mt-1 w-full py-1 px-2 rounded-md bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] shadow-xs transition-colors"
                     >
                       Reduce shift to widen crest (x - 0.15)
+                    </button>
+                  </div>
+                )}
+
+                {/* Conjugate Pair Mesh Interference Alert */}
+                {isPairActive && dims.hasMeshInterference && (
+                  <div className="mt-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 text-[10px] space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                      Interferencia con engranaje conjugado (+{dims.toothOverlapInterference} mm)
+                    </div>
+                    <p className="text-[9.5px] text-rose-800 leading-tight">
+                      Este desplazamiento provoca penetración de material en la pareja (holgura c = {dims.bottomClearance} mm).
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => autoCompensateProfileShift()}
+                      className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors"
+                    >
+                      Auto-compensar V-cero (x2 = -{params.profileShift.toFixed(2)})
                     </button>
                   </div>
                 )}
