@@ -33,7 +33,12 @@ export const RightSidebar: React.FC = () => {
   const effBeta = (params.gearType === 'helical' || params.gearType === 'herringbone') && params.helixAngle ? params.helixAngle : 0
   const betaRad = (effBeta * Math.PI) / 180
   const mt = betaRad !== 0 ? params.module / Math.cos(betaRad) : params.module
-  const centerDistance = gear2Enabled ? (mt * (gear1Params.teeth + gear2Params.teeth)) / 2 : 0
+  const isInternal = gear1Params.gearType === 'internal'
+  const centerDistance = gear2Enabled
+    ? (isInternal
+        ? Math.abs((mt * (gear1Params.teeth - gear2Params.teeth)) / 2)
+        : (mt * (gear1Params.teeth + gear2Params.teeth)) / 2)
+    : 0
   const gearRatio = gear2Enabled && gear1Params.teeth > 0 ? gear2Params.teeth / gear1Params.teeth : 1
   const speedG1 = motorRpm
   const speedG2 = gear2Enabled && gear2Params.teeth > 0 ? Number(((motorRpm * gear1Params.teeth) / gear2Params.teeth).toFixed(1)) : 0
@@ -148,7 +153,7 @@ export const RightSidebar: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs">Gear 1 (Drive)</span>
+                        <span className="text-xs">{isInternal ? 'Ring Gear (Drive)' : 'Gear 1 (Drive)'}</span>
                         {selectedGear === 1 && (
                           <span className="w-2 h-2 rounded-full bg-orange-500" />
                         )}
@@ -168,7 +173,7 @@ export const RightSidebar: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs">Gear 2 (Driven)</span>
+                        <span className="text-xs">{isInternal ? 'Internal Pinion' : 'Gear 2 (Driven)'}</span>
                         {selectedGear === 2 && (
                           <span className="w-2 h-2 rounded-full bg-blue-500" />
                         )}
@@ -529,16 +534,16 @@ export const RightSidebar: React.FC = () => {
                 </div>
                 <input
                   type="range"
-                  min="8"
-                  max="120"
+                  min={isInternal && selectedGear === 1 ? Math.max(16, gear2Params.teeth + 4) : 8}
+                  max={isInternal && selectedGear === 2 ? Math.max(8, gear1Params.teeth - 4) : 120}
                   step="1"
                   value={params.teeth}
                   onChange={(e) => setGearParam('teeth', parseInt(e.target.value))}
                   className="w-full accent-orange-500 cursor-pointer"
                 />
                 <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
-                  <span>8 teeth</span>
-                  <span>120 teeth</span>
+                  <span>{isInternal && selectedGear === 1 ? Math.max(16, gear2Params.teeth + 4) : 8} teeth</span>
+                  <span>{isInternal && selectedGear === 2 ? Math.max(8, gear1Params.teeth - 4) : 120} teeth</span>
                 </div>
               </div>
 
@@ -1317,17 +1322,52 @@ export const RightSidebar: React.FC = () => {
         {/* SECTION 2 & 3 FOR NORMAL GEARS */}
         {!isRack && (
           <>
-            <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-                <span>2 · Shaft Bore & DIN 6885 Keyway</span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  params.boreDiameter > 0
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'bg-slate-100 text-slate-500'
-                }`}>
-                  {params.boreDiameter > 0 ? `Ø ${params.boreDiameter} mm` : 'Solid'}
-                </span>
+            {params.gearType === 'internal' ? (
+              <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
+                  <span>2 · Annular Ring Dimensions</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                    Outer Shell
+                  </span>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[11px] font-medium text-slate-700">Outer Ring Diameter (D_out)</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">
+                      {params.outerRingDiameter || Math.round((dims.tipRadius + 15) * 2)} mm
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={Math.round((dims.tipRadius + 10) * 2)}
+                    max={Math.round((dims.tipRadius + 50) * 2)}
+                    step="1"
+                    value={params.outerRingDiameter || Math.round((dims.tipRadius + 15) * 2)}
+                    onChange={(e) => setGearParam('outerRingDiameter', parseFloat(e.target.value))}
+                    className="w-full accent-orange-500 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
+                    <span>{Math.round((dims.tipRadius + 10) * 2)} mm</span>
+                    <span>{Math.round((dims.tipRadius + 50) * 2)} mm</span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-[10px] text-slate-500">
+                  Internal ring gear is an annular ring without a center shaft. Conjugate pinion meshes internally.
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
+                    <span>2 · Shaft Bore & DIN 6885 Keyway</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      params.boreDiameter > 0
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {params.boreDiameter > 0 ? `Ø ${params.boreDiameter} mm` : 'Solid'}
+                    </span>
+                  </div>
 
               {/* Center shaft bore toggle */}
               <div className="flex items-center justify-between">
@@ -1636,6 +1676,8 @@ export const RightSidebar: React.FC = () => {
             </div>
           </>
         )}
+      </>
+    )}
       </div>
 
       {/* FIXED BOTTOM ACTIONS */}

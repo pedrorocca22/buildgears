@@ -199,4 +199,32 @@ describe('Dual Gear Conjugate System & Motorization', () => {
     const speedG2 = (state.motorRpm * state.gear1Params.teeth) / state.gear2Params.teeth
     expect(speedG2).toBeCloseTo(91.76, 1)
   })
+
+  it('configures a small internal spur pinion when Gear 1 is an Internal Ring Gear', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearParam('gearType', 'internal')
+    store.setGearParam('teeth', 30)
+    store.setGearParam('module', 2.0)
+
+    // Enable Gear 2 (the conjugate planet/pinion)
+    store.setGear2Enabled(true)
+
+    const state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('internal')
+    expect(state.gear2Params.gearType).toBe('spur') // Internal pinion MUST be spur, not internal ring!
+    expect(state.gear2Params.teeth).toBeLessThan(state.gear1Params.teeth) // Must fit inside the ring!
+
+    // Internal center distance: a = m * (z1 - z2) / 2
+    // with z1 = 30, z2 = 14: a = 2.0 * (30 - 14) / 2 = 16.0 mm
+    const dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    const expectedCenterDist = Math.abs((2.0 * (state.gear1Params.teeth - state.gear2Params.teeth)) / 2)
+    expect(dims.centerDistance).toBeCloseTo(expectedCenterDist, 2)
+
+    // Pinion teeth clamping: Gear 2 cannot exceed z1 - 4
+    store.selectGear(2)
+    store.setGearParam('teeth', 50) // Attempt to set larger than ring
+    const clampedState = useGearStore.getState()
+    expect(clampedState.gear2Params.teeth).toBeLessThanOrEqual(state.gear1Params.teeth - 4)
+  })
 })

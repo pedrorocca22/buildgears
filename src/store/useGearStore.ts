@@ -121,12 +121,38 @@ function adaptConjugateParams(
       break
     case 'gearType': {
       const gType = newValue as GearType
-      adapted.gearType = gType
-      if (gType === 'helical' || gType === 'herringbone') {
-        adapted.helixAngle = sender.helixAngle || 20
-        adapted.helixHand = sender.helixHand === 'right' ? 'left' : 'right'
-      } else if (gType === 'spur') {
+      if (gType === 'internal') {
+        // En engranaje interior, la pareja conjugada acoplada es un piñón cilíndrico exterior (spur)
+        adapted.gearType = 'spur'
         adapted.helixAngle = 0
+        if (adapted.teeth >= sender.teeth) {
+          adapted.teeth = Math.min(14, Math.max(8, Math.floor(sender.teeth * 0.5)))
+        }
+      } else if (sender.gearType === 'internal') {
+        adapted.gearType = gType
+        if (gType === 'helical' || gType === 'herringbone') {
+          adapted.helixAngle = sender.helixAngle || 20
+          adapted.helixHand = sender.helixHand === 'right' ? 'left' : 'right'
+        } else if (gType === 'spur') {
+          adapted.helixAngle = 0
+        }
+      } else {
+        adapted.gearType = gType
+        if (gType === 'helical' || gType === 'herringbone') {
+          adapted.helixAngle = sender.helixAngle || 20
+          adapted.helixHand = sender.helixHand === 'right' ? 'left' : 'right'
+        } else if (gType === 'spur') {
+          adapted.helixAngle = 0
+        }
+      }
+      break
+    }
+    case 'teeth': {
+      const z = newValue as number
+      if (sender.gearType === 'internal') {
+        if (adapted.teeth >= z) {
+          adapted.teeth = Math.max(8, z - 4)
+        }
       }
       break
     }
@@ -217,14 +243,22 @@ export const useGearStore = create<GearStoreState>((set) => ({
   setGear2Enabled: (enabled) =>
     set((state) => {
       const nextSelected = enabled ? state.selectedGear : 1
+      let nextG2 = { ...state.gear2Params }
+      if (enabled && state.gear1Params.gearType === 'internal') {
+        nextG2.gearType = 'spur'
+        if (nextG2.teeth >= state.gear1Params.teeth) {
+          nextG2.teeth = Math.min(14, Math.max(8, Math.floor(state.gear1Params.teeth * 0.5)))
+        }
+      }
       return {
         gear2Enabled: enabled,
         selectedGear: nextSelected,
-        params: nextSelected === 1 ? state.gear1Params : state.gear2Params,
+        gear2Params: nextG2,
+        params: nextSelected === 1 ? state.gear1Params : nextG2,
         meshingPair: {
           ...state.meshingPair,
           enabled,
-          teeth2: state.gear2Params.teeth,
+          teeth2: nextG2.teeth,
         },
       }
     }),
@@ -253,8 +287,20 @@ export const useGearStore = create<GearStoreState>((set) => ({
       const active = isG1 ? state.gear1Params : state.gear2Params
       const other = isG1 ? state.gear2Params : state.gear1Params
 
-      const updatedActive = { ...active, [key]: value }
-      const updatedOther = adaptConjugateParams(updatedActive, other, key, value)
+      // Si Gear 1 es internal y estamos editando Gear 2 (piñón interno engranado):
+      let safeValue = value
+      if (!isG1 && state.gear1Params.gearType === 'internal') {
+        if (key === 'gearType' && value === 'internal') {
+          // El piñón interno no puede ser corona interior
+          return state
+        }
+        if (key === 'teeth') {
+          safeValue = Math.min(Number(value), Math.max(8, state.gear1Params.teeth - 4)) as any
+        }
+      }
+
+      const updatedActive = { ...active, [key]: safeValue }
+      const updatedOther = adaptConjugateParams(updatedActive, other, key, safeValue)
 
       const newG1 = isG1 ? updatedActive : updatedOther
       const newG2 = isG1 ? updatedOther : updatedActive

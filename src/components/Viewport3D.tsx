@@ -220,14 +220,19 @@ export const Viewport3D: React.FC = () => {
             const z1 = storeState.gear1Params.teeth
             const z2 = storeState.gear2Params.teeth
             const ratio = z1 / z2
+            const isInternal = storeState.gear1Params.gearType === 'internal'
             const effBeta = (storeState.gear1Params.gearType === 'helical' || storeState.gear1Params.gearType === 'herringbone') && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
             const betaRad = (effBeta * Math.PI) / 180
             const mt = betaRad !== 0 ? storeState.gear1Params.module / Math.cos(betaRad) : storeState.gear1Params.module
-            const centerDist = (mt * (z1 + z2)) / 2
-            const phaseOffset = Math.PI + Math.PI / z2
+            const centerDist = isInternal
+              ? Math.abs((mt * (z1 - z2)) / 2)
+              : (mt * (z1 + z2)) / 2
+            const phaseOffset = isInternal ? 0 : Math.PI + Math.PI / z2
 
             pairMeshRef.current.position.set(centerDist, 0, 0)
-            pairMeshRef.current.rotation.z = -angleGear1 * ratio + phaseOffset
+            pairMeshRef.current.rotation.z = isInternal
+              ? angleGear1 * ratio + phaseOffset
+              : -angleGear1 * ratio + phaseOffset
           }
         }
       } else {
@@ -254,6 +259,25 @@ export const Viewport3D: React.FC = () => {
             const basePinionPhase = -Math.PI / 2 + (xGapClosest / rp)
 
             pairMeshRef.current.rotation.z = basePinionPhase
+          }
+        } else {
+          if (mainMeshRef.current && mainMeshRef.current.rotation.z !== 0) {
+            mainMeshRef.current.rotation.z = 0
+          }
+          if (pairMeshRef.current) {
+            const z1 = storeState.gear1Params.teeth
+            const z2 = storeState.gear2Params.teeth
+            const isInternal = storeState.gear1Params.gearType === 'internal'
+            const effBeta = (storeState.gear1Params.gearType === 'helical' || storeState.gear1Params.gearType === 'herringbone') && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
+            const betaRad = (effBeta * Math.PI) / 180
+            const mt = betaRad !== 0 ? storeState.gear1Params.module / Math.cos(betaRad) : storeState.gear1Params.module
+            const centerDist = isInternal
+              ? Math.abs((mt * (z1 - z2)) / 2)
+              : (mt * (z1 + z2)) / 2
+            const phaseOffset = isInternal ? 0 : Math.PI + Math.PI / z2
+
+            pairMeshRef.current.position.set(centerDist, 0, 0)
+            pairMeshRef.current.rotation.z = phaseOffset
           }
         }
       }
@@ -413,11 +437,21 @@ export const Viewport3D: React.FC = () => {
           pairParams = getConjugatePinionParams(gear1Params)
           effDist = pairDims.pinionOperatingY || ((pairDims.circularPitch / Math.PI) * (gear1Params.rackPinionTeeth || 20) / 2)
         } else {
+          const isInternal = gear1Params.gearType === 'internal'
           const effBeta = (gear1Params.gearType === 'helical' || gear1Params.gearType === 'herringbone') && gear1Params.helixAngle ? gear1Params.helixAngle : 0
           const betaRad = (effBeta * Math.PI) / 180
           const mt = betaRad !== 0 ? gear1Params.module / Math.cos(betaRad) : gear1Params.module
-          effDist = (mt * (gear1Params.teeth + gear2Params.teeth)) / 2
-          pairParams = gear2Params
+          effDist = isInternal
+            ? Math.abs((mt * (gear1Params.teeth - gear2Params.teeth)) / 2)
+            : (mt * (gear1Params.teeth + gear2Params.teeth)) / 2
+
+          pairParams = isInternal
+            ? {
+                ...gear2Params,
+                gearType: 'spur',
+                teeth: Math.min(gear2Params.teeth, Math.max(8, gear1Params.teeth - 4)),
+              }
+            : gear2Params
         }
 
         const geom = await buildGearThreeGeometry(pairParams)
@@ -468,8 +502,9 @@ export const Viewport3D: React.FC = () => {
             mainMeshRef.current.visible = focus === 'both' || focus === 'rack'
           }
         } else {
+          const isInternal = gear1Params.gearType === 'internal'
           pairMesh.position.set(effDist, 0, 0)
-          const phaseOffset = Math.PI + Math.PI / gear2Params.teeth
+          const phaseOffset = isInternal ? 0 : Math.PI + Math.PI / pairParams.teeth
           pairMesh.rotation.z = phaseOffset
         }
         sceneRef.current.add(pairMesh)
