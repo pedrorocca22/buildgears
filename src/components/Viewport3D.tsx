@@ -186,10 +186,19 @@ export const Viewport3D: React.FC = () => {
           const operatingY = rp + xp * m
 
           const rLength = storeState.gear1Params.rackLength || 160
+          const pitch = Math.PI * mt
+          const toothCount = Math.max(3, Math.floor(rLength / pitch))
+          const startX = -(toothCount * pitch) / 2
+          const kClosest = Math.round(-startX / pitch)
+          const xGapClosest = startX + kClosest * pitch
+          const basePinionPhase = -Math.PI / 2 + (xGapClosest / rp)
+
           // Carrera armónica reversible centrada para visualización técnica continua
           const strokeLimit = Math.max(15, rLength / 2 - rp - 10)
           const linearDisp = strokeLimit * Math.sin(angleGear1 * 0.5)
-          const pinionAngle = -linearDisp / rp
+          // Sentido cinemático coordinado: desplazamiento lineal a la derecha (+X)
+          // requiere rotación anti-horaria (CCW, +theta) del piñón para que las velocidades tangenciales coincidan en signo
+          const pinionAngle = basePinionPhase + (linearDisp / rp)
 
           if (mainMeshRef.current) {
             mainMeshRef.current.position.set(linearDisp, 0, 0)
@@ -222,9 +231,30 @@ export const Viewport3D: React.FC = () => {
           }
         }
       } else {
-        // En reposo, restablecer posición recta si es rack
-        if (mainMeshRef.current && isRack && mainMeshRef.current.position.x !== 0) {
-          mainMeshRef.current.position.set(0, 0, 0)
+        // En reposo, restablecer posición recta y fase de engrane conjugado
+        if (isRack) {
+          if (mainMeshRef.current && mainMeshRef.current.position.x !== 0) {
+            mainMeshRef.current.position.set(0, 0, 0)
+          }
+          if (pairMeshRef.current) {
+            const pTeeth = storeState.gear1Params.rackPinionTeeth || 20
+            const m = storeState.gear1Params.module
+            const isHerringbone = storeState.gear1Params.rackToothType === 'herringbone'
+            const isHelical = storeState.gear1Params.rackToothType === 'helical' || (!storeState.gear1Params.rackToothType && storeState.gear1Params.helixAngle && storeState.gear1Params.helixAngle > 0)
+            const effBeta = (isHerringbone || isHelical) ? (storeState.gear1Params.helixAngle || 20) : 0
+            const betaRad = effBeta * (Math.PI / 180)
+            const mt = betaRad !== 0 ? m / Math.cos(betaRad) : m
+            const rp = (mt * pTeeth) / 2
+            const rLength = storeState.gear1Params.rackLength || 160
+            const pitch = Math.PI * mt
+            const toothCount = Math.max(3, Math.floor(rLength / pitch))
+            const startX = -(toothCount * pitch) / 2
+            const kClosest = Math.round(-startX / pitch)
+            const xGapClosest = startX + kClosest * pitch
+            const basePinionPhase = -Math.PI / 2 + (xGapClosest / rp)
+
+            pairMeshRef.current.rotation.z = basePinionPhase
+          }
         }
       }
 
@@ -414,7 +444,24 @@ export const Viewport3D: React.FC = () => {
         pairMesh.add(edgeLines)
 
         if (isRack) {
+          const rLen = gear1Params.rackLength || 160
+          const pTeeth = gear1Params.rackPinionTeeth || 20
+          const m = gear1Params.module
+          const isHerringbone = gear1Params.rackToothType === 'herringbone'
+          const isHelical = gear1Params.rackToothType === 'helical' || (!gear1Params.rackToothType && gear1Params.helixAngle && gear1Params.helixAngle > 0)
+          const effBeta = (isHerringbone || isHelical) ? (gear1Params.helixAngle || 20) : 0
+          const betaRad = effBeta * (Math.PI / 180)
+          const mt = betaRad !== 0 ? m / Math.cos(betaRad) : m
+          const rp = (mt * pTeeth) / 2
+          const pitch = Math.PI * mt
+          const toothCount = Math.max(3, Math.floor(rLen / pitch))
+          const startX = -(toothCount * pitch) / 2
+          const kClosest = Math.round(-startX / pitch)
+          const xGapClosest = startX + kClosest * pitch
+          const basePinionPhase = -Math.PI / 2 + (xGapClosest / rp)
+
           pairMesh.position.set(0, effDist, 0)
+          pairMesh.rotation.z = basePinionPhase
           const focus = gear1Params.rackViewFocus || 'both'
           pairMesh.visible = (gear1Params.rackIncludePinion !== false) && (focus === 'both' || focus === 'pinion')
           if (mainMeshRef.current) {
