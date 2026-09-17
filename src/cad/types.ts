@@ -11,7 +11,6 @@ export type HelixHand = 'right' | 'left'
 export type BodyStyle =
   | 'solid'          // Disco macizo
   | 'hub'            // Con núcleo / valona sobresaliente
-  | 'spoke'          // Con banda y orificios de aligeramiento (web)
 
 export type ToothProfileType =
   | 'standard'    // Estándar ISO 53 / DIN 867 (ha*=1.0, hf*=1.25)
@@ -45,15 +44,12 @@ export interface GearParameters {
   keywayWidth?: number    // Anchura chavetero b (mm)
   keywayDepth?: number    // Profundidad en el buje t_2 (mm)
   
-  // Características del cuerpo (Buje y aligeramiento)
+  // Características del cuerpo (Buje)
   bodyStyle: BodyStyle
   hubDiameter: number     // Diámetro exterior del buje (mm)
   hubLength: number       // Longitud total del buje (mm)
   hubOffset: number       // Saliente del buje respecto a la cara (mm)
-  webThickness: number    // Espesor de la pared de aligeramiento (mm)
-  holeCount: number       // Número de agujeros de aligeramiento (ej: 4, 5, 6)
-  holeDiameter: number    // Diámetro de cada agujero (mm)
-  holeCircleRadius: number// Radio donde se sitúan los centros de los agujeros (mm)
+  hubBothSides?: boolean  // Habilitar buje en ambas caras (superior e inferior). Por defecto: false
 
   // Opciones para corona interior / aro exterior
   outerRingDiameter?: number // Diámetro exterior del aro de la corona interior
@@ -72,10 +68,11 @@ export interface GearParameters {
   rackPinionTeeth?: number       // Dientes del piñón motriz conjugado (z_p, ej: 20)
   rackPinionBore?: number        // Diámetro eje del piñón motriz (mm, ej: 14)
   rackPinionFaceWidth?: number   // Anchura de cara del piñón b_p (mm, ej: 20)
-  rackPinionBodyStyle?: BodyStyle// Estilo cuerpo piñón: 'solid' | 'hub' | 'spoke'
+  rackPinionBodyStyle?: BodyStyle// Estilo cuerpo piñón: 'solid' | 'hub'
   rackPinionHubDiameter?: number // Diámetro buje del piñón (mm)
   rackPinionHubLength?: number   // Longitud buje del piñón (mm)
   rackPinionHubOffset?: number   // Saliente buje del piñón (mm)
+  rackPinionHubBothSides?: boolean // Buje del piñón en ambas caras
   rackPinionHasKeyway?: boolean  // Chavetero DIN 6885 en piñón
   rackPinionKeywayCustom?: boolean // Parametrización manual de chavetero en piñón
   rackPinionKeywayWidth?: number   // Anchura chavetero en piñón b (mm)
@@ -84,6 +81,13 @@ export interface GearParameters {
   rackPinionToothChamfer?: number     // Dimensión de chaflán de dientes en piñón (mm)
   rackPinionProfileShift?: number// Desplazamiento de perfil x_p del piñón
   rackViewFocus?: 'both' | 'rack' | 'pinion' // Enfoque visual del mecanismo
+}
+
+export interface GearPairState {
+  gear2Enabled: boolean
+  selectedGear: 1 | 2
+  motorized: boolean
+  motorRpm: number
 }
 
 export interface MeshingPairParameters {

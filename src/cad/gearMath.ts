@@ -495,6 +495,7 @@ export function getConjugatePinionParams(params: GearParameters): GearParameters
     hubDiameter: params.rackPinionHubDiameter || Math.max(22, (params.rackPinionTeeth || 20) * params.module * 0.45),
     hubLength: params.rackPinionHubLength || 26,
     hubOffset: params.rackPinionHubOffset || 4,
+    hubBothSides: params.rackPinionHubBothSides ?? false,
     profileShift: params.rackPinionProfileShift || 0.0,
   }
 }

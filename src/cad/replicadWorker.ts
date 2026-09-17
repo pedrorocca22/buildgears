@@ -102,9 +102,7 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
     bodyStyle,
     hubDiameter,
     hubOffset,
-    holeCount,
-    holeDiameter,
-    holeCircleRadius,
+    hubBothSides,
   } = gp
 
   // Optimización crítica para OpenCASCADE B-Rep en WebAssembly:
@@ -175,11 +173,14 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
   // Fusión rápida de dos primitivas simples (0.01s), evitando múltiples cortes pesados sobre las caras del engranaje.
   let shaftCutter: any = null
   if (boreDiameter > 0) {
-    const boreTotalLen = faceWidth + (hubOffset || 0) + 40
+    const isBoth = Boolean(hubBothSides)
+    const extraLen = isBoth ? (hubOffset || 0) * 2 : (hubOffset || 0)
+    const zStart = isBoth ? -(hubOffset || 0) - 20 : -20
+    const boreTotalLen = faceWidth + extraLen + 40
     shaftCutter = drawCircle(boreDiameter / 2)
       .sketchOnPlane('XY')
       .extrude(boreTotalLen)
-      .translate([0, 0, -20])
+      .translate([0, 0, zStart])
 
     if (hasKeyway) {
       const kw = getDIN6885Keyway(boreDiameter)
@@ -189,17 +190,22 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
       const keyBox: any = drawRectangle(bKey, t2Key * 2)
         .sketchOnPlane('XY')
         .extrude(boreTotalLen)
-        .translate([0, boreDiameter / 2, -20])
+        .translate([0, boreDiameter / 2, zStart])
       shaftCutter = shaftCutter.fuse(keyBox)
     }
   }
 
-  // Buje (Hub) - parte desde la base Z = 0 y sobresale por la cara superior en hubOffset
+  // Buje (Hub) - sobresale por la cara superior en hubOffset, o por ambas caras si hubBothSides es true
   if (bodyStyle === 'hub' && hubDiameter > boreDiameter) {
-    const hubTotal = faceWidth + (hubOffset || 0)
-    const hub: any = drawCircle(hubDiameter / 2)
+    const isBoth = Boolean(hubBothSides)
+    const offset = hubOffset || 0
+    const hubTotal = isBoth ? faceWidth + offset * 2 : faceWidth + offset
+    let hub: any = drawCircle(hubDiameter / 2)
       .sketchOnPlane('XY')
       .extrude(hubTotal)
+    if (isBoth && offset > 0) {
+      hub = hub.translate([0, 0, -offset])
+    }
     solid = solid.fuse(hub)
   }
 
@@ -208,25 +214,7 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
     solid = solid.cut(shaftCutter)
   }
 
-  // Aligeramiento (Spoke) - agrupado en un único corte compuesto para máxima velocidad
-  if (bodyStyle === 'spoke' && holeCount > 0 && holeDiameter > 2 && holeCircleRadius > (boreDiameter / 2 + holeDiameter / 2)) {
-    const cutLen = faceWidth + 40
-    const spokeHoles: any[] = []
-    for (let i = 0; i < holeCount; i++) {
-      const angle = (i * 2 * Math.PI) / holeCount
-      const hx = holeCircleRadius * Math.cos(angle)
-      const hy = holeCircleRadius * Math.sin(angle)
 
-      const hole: any = drawCircle(holeDiameter / 2)
-        .sketchOnPlane('XY')
-        .extrude(cutLen)
-        .translate([hx, hy, -20])
-      spokeHoles.push(hole)
-    }
-    if (spokeHoles.length > 0) {
-      solid = solid.cut(makeCompound(spokeHoles))
-    }
-  }
 
   return solid
 }

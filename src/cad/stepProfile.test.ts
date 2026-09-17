@@ -25,10 +25,6 @@ function base(over: Partial<GearParameters> = {}): GearParameters {
     hubDiameter: 34,
     hubLength: 26,
     hubOffset: 4,
-    webThickness: 8,
-    holeCount: 5,
-    holeDiameter: 8,
-    holeCircleRadius: 21,
     ...over,
   }
 }

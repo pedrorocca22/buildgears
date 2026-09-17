@@ -66,9 +66,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
     bodyStyle,
     hubDiameter,
     hubOffset,
-    holeCount,
-    holeDiameter,
-    holeCircleRadius,
+    hubBothSides,
   } = params
 
   let gearSolid: any = null
@@ -267,21 +265,27 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
   if (gearType !== 'rack' && gearType !== 'internal') {
     // Buje adicional (Hub)
     if (bodyStyle === 'hub' && hubDiameter > boreDiameter) {
-      const hubTotalLength = faceWidth + hubOffset
+      const offset = hubOffset || 0
+      const isBoth = Boolean(hubBothSides)
+      const hubTotalLength = isBoth ? faceWidth + offset * 2 : faceWidth + offset
+      const hubZOffset = isBoth ? 0 : offset / 2
+
       const hub = m3d.Manifold.cylinder(
         hubTotalLength,
         hubDiameter / 2,
         hubDiameter / 2,
         48,
         true
-      )
+      ).translate([0, 0, hubZOffset])
       gearSolid = gearSolid.add(hub)
     }
 
     // Taladro central del eje (Bore)
     if (boreDiameter > 0) {
       const boreRadius = boreDiameter / 2
-      const boreLen = faceWidth + (hubOffset || 0) + 20
+      const offset = hubOffset || 0
+      const maxExt = hubBothSides ? offset * 2 : offset
+      const boreLen = faceWidth + maxExt + 40
       const boreCyl = m3d.Manifold.cylinder(boreLen, boreRadius, boreRadius, 48, true)
       gearSolid = gearSolid.subtract(boreCyl)
 
@@ -298,19 +302,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
       }
     }
 
-    // Aligeramiento (Spoke / Web holes)
-    if (bodyStyle === 'spoke' && holeCount > 0 && holeDiameter > 2 && holeCircleRadius > (boreDiameter / 2 + holeDiameter / 2)) {
-      const cutLen = faceWidth + 10
-      for (let i = 0; i < holeCount; i++) {
-        const angle = (i * 2 * Math.PI) / holeCount
-        const hx = holeCircleRadius * Math.cos(angle)
-        const hy = holeCircleRadius * Math.sin(angle)
 
-        const holeCyl = m3d.Manifold.cylinder(cutLen, holeDiameter / 2, holeDiameter / 2, 32, true)
-          .translate([hx, hy, 0])
-        gearSolid = gearSolid.subtract(holeCyl)
-      }
-    }
   }
 
   return gearSolid

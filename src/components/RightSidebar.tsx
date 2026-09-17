@@ -3,13 +3,21 @@ import { useGearStore } from '../store/useGearStore'
 import { getDIN6885Keyway } from '../cad/din6885'
 import { getDIN912Screw } from '../cad/din912'
 import { calculateDimensions } from '../cad/gearMath'
-import { BacklashPanel } from './BacklashPanel'
 
 export const RightSidebar: React.FC = () => {
   const params = useGearStore((s) => s.params)
+  const gear1Params = useGearStore((s) => s.gear1Params)
+  const gear2Params = useGearStore((s) => s.gear2Params)
+  const selectedGear = useGearStore((s) => s.selectedGear)
+  const selectGear = useGearStore((s) => s.selectGear)
+  const gear2Enabled = useGearStore((s) => s.gear2Enabled)
+  const setGear2Enabled = useGearStore((s) => s.setGear2Enabled)
+  const motorized = useGearStore((s) => s.motorized)
+  const setMotorized = useGearStore((s) => s.setMotorized)
+  const motorRpm = useGearStore((s) => s.motorRpm)
+  const setMotorRpm = useGearStore((s) => s.setMotorRpm)
   const setGearParam = useGearStore((s) => s.setGearParam)
-  const meshingPair = useGearStore((s) => s.meshingPair)
-  const setMeshingPair = useGearStore((s) => s.setMeshingPair)
+  const setGearParams = useGearStore((s) => s.setGearParams)
   const resetCurrentGear = useGearStore((s) => s.resetCurrentGear)
   const exportStatus = useGearStore((s) => s.exportStatus)
   const openExportModal = useGearStore((s) => s.openExportModal)
@@ -20,7 +28,15 @@ export const RightSidebar: React.FC = () => {
   const standardKeyway = getDIN6885Keyway(params.boreDiameter > 0 ? params.boreDiameter : 18)
   const pinionKeyway = getDIN6885Keyway(params.rackPinionBore && params.rackPinionBore > 0 ? params.rackPinionBore : 14)
   const dinScrew = getDIN912Screw(params.rackScrewStandard || 'M5')
-  const dims = calculateDimensions(params, meshingPair.enabled ? meshingPair.teeth2 : undefined)
+  const dims = calculateDimensions(params, gear2Enabled ? gear2Params.teeth : undefined)
+
+  const effBeta = (params.gearType === 'helical' || params.gearType === 'herringbone') && params.helixAngle ? params.helixAngle : 0
+  const betaRad = (effBeta * Math.PI) / 180
+  const mt = betaRad !== 0 ? params.module / Math.cos(betaRad) : params.module
+  const centerDistance = gear2Enabled ? (mt * (gear1Params.teeth + gear2Params.teeth)) / 2 : 0
+  const gearRatio = gear2Enabled && gear1Params.teeth > 0 ? gear2Params.teeth / gear1Params.teeth : 1
+  const speedG1 = motorRpm
+  const speedG2 = gear2Enabled && gear2Params.teeth > 0 ? Number(((motorRpm * gear1Params.teeth) / gear2Params.teeth).toFixed(1)) : 0
 
   const rackToothTitle = params.rackToothType === 'herringbone'
     ? 'Herringbone Rack & Pinion'
@@ -51,11 +67,22 @@ export const RightSidebar: React.FC = () => {
       {/* Parametric object header */}
       <div className="p-4 border-b border-slate-200 bg-white flex items-center justify-between">
         <div>
-          <h2 className="text-xs font-bold text-slate-900 leading-tight">
-            {gearTitleMap[params.gearType] || 'Gear'}
-          </h2>
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-xs font-bold text-slate-900 leading-tight">
+              {gearTitleMap[params.gearType] || 'Gear'}
+            </h2>
+            {gear2Enabled && !isRack && (
+              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                Gear {selectedGear}
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-slate-400">
-            {isRack ? 'Coupled Kinematic Mechanism' : 'Parametric CAD / CNC Model'}
+            {isRack
+              ? 'Coupled Kinematic Mechanism'
+              : gear2Enabled
+              ? 'Conjugate Dual Gear Transmission'
+              : 'Parametric CAD / CNC Model'}
           </p>
         </div>
 
@@ -64,12 +91,178 @@ export const RightSidebar: React.FC = () => {
           title="Reset to default parameters"
           className="px-2 py-1 rounded-md text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
         >
-          Reset
+          Reset {gear2Enabled ? `G${selectedGear}` : ''}
         </button>
       </div>
 
       {/* Controls container with scroll */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
+        {/* DUAL GEAR TRANSMISSION SYSTEM & MOTORIZATION */}
+        {!isRack && (
+          <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-500" />
+                <span className="text-[11px] font-bold text-slate-800">
+                  Dual Gear Transmission
+                </span>
+              </div>
+              {!gear2Enabled ? (
+                <button
+                  type="button"
+                  onClick={() => setGear2Enabled(true)}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 transition-all flex items-center gap-1 shadow-2xs"
+                >
+                  <span>+ Add Gear 2</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setGear2Enabled(false)}
+                  className="text-[10px] font-semibold text-slate-400 hover:text-red-500 transition-colors"
+                  title="Remove second gear"
+                >
+                  Remove Gear 2 ✕
+                </button>
+              )}
+            </div>
+
+            {gear2Enabled && (
+              <>
+                {/* Active Gear Selector Tabs */}
+                <div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium mb-1.5">
+                    <span>Active Editing Gear:</span>
+                    <span className="font-bold text-orange-600">
+                      {selectedGear === 1 ? `Gear 1 (${gear1Params.teeth}z)` : `Gear 2 (${gear2Params.teeth}z)`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => selectGear(1)}
+                      className={`py-2 px-2.5 rounded-lg text-left transition-all ${
+                        selectedGear === 1
+                          ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs">Gear 1 (Drive)</span>
+                        {selectedGear === 1 && (
+                          <span className="w-2 h-2 rounded-full bg-orange-500" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        z1 = {gear1Params.teeth}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => selectGear(2)}
+                      className={`py-2 px-2.5 rounded-lg text-left transition-all ${
+                        selectedGear === 2
+                          ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/80 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs">Gear 2 (Driven)</span>
+                        {selectedGear === 2 && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        z2 = {gear2Params.teeth}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conjugate Mesh Lock & Metrics Card */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] font-bold text-emerald-800">
+                        Conjugate Mesh Locked
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-mono">
+                      Module & Involute Synced
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                      <div className="text-[9px] text-slate-400">Center Distance (a):</div>
+                      <div className="font-extrabold text-slate-900 text-sm">
+                        {centerDistance.toFixed(2)} mm
+                      </div>
+                      <div className="text-[8.5px] text-slate-400">Perfect tangency</div>
+                    </div>
+
+                    <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                      <div className="text-[9px] text-slate-400">Ratio (i = z2/z1):</div>
+                      <div className="font-extrabold text-slate-900 text-sm">
+                        {gearRatio.toFixed(3)}
+                      </div>
+                      <div className="text-[8.5px] text-slate-400">Speed factor</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Motorization Controls */}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block">
+                        Motorize Transmission
+                      </span>
+                      <span className="text-[9.5px] text-slate-400">
+                        {motorized ? 'Synchronous differential drive' : 'Motor idle'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMotorized(!motorized)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
+                        motorized
+                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>{motorized ? '⏸ Pause' : '▶ Motorize'}</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10.5px] text-slate-600 font-medium">Motor Input Speed</span>
+                      <span className="font-mono text-xs font-bold text-slate-900">{motorRpm} RPM</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="120"
+                      step="1"
+                      value={motorRpm}
+                      onChange={(e) => setMotorRpm(parseInt(e.target.value))}
+                      className="w-full accent-orange-500 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] font-mono text-slate-600 pt-1 px-2 py-1.5 bg-slate-50 border border-slate-200/80 rounded-lg">
+                    <span>Gear 1: <strong className="text-slate-900">{speedG1} RPM</strong></span>
+                    <span>Gear 2: <strong className="text-blue-600">{speedG2} RPM</strong></span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* RACK & PINION VIEWPORT FOCUS */}
         {isRack && (
           <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2">
@@ -952,6 +1145,28 @@ export const RightSidebar: React.FC = () => {
                         onChange={(e) => setGearParam('rackPinionHubOffset', parseFloat(e.target.value))}
                         className="w-full accent-orange-500 cursor-pointer"
                       />
+
+                      <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-medium text-slate-700 block">Both Sides</span>
+                          <span className="text-[9px] text-slate-400 block">
+                            {params.rackPinionHubBothSides ? 'Both faces' : 'Top face only'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setGearParam('rackPinionHubBothSides', !params.rackPinionHubBothSides)}
+                          className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                            params.rackPinionHubBothSides ? 'bg-orange-500' : 'bg-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`bg-white w-3 h-3 rounded-full shadow-sm transform transition-transform ${
+                              params.rackPinionHubBothSides ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1315,21 +1530,20 @@ export const RightSidebar: React.FC = () => {
 
             <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-                <span>3 · Body & Weight Reduction</span>
+                <span>3 · Body & Hub</span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   params.bodyStyle === 'solid'
                     ? 'bg-slate-100 text-slate-600'
                     : 'bg-orange-100 text-orange-700'
                 }`}>
-                  {params.bodyStyle === 'solid' ? 'Solid' : params.bodyStyle === 'hub' ? 'Hub' : 'Spokes'}
+                  {params.bodyStyle === 'solid' ? 'Solid' : 'Hub'}
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {[
                   { id: 'solid', label: 'Solid' },
                   { id: 'hub', label: 'With Hub' },
-                  { id: 'spoke', label: 'Spoke Cutouts' },
                 ].map((st) => (
                   <button
                     key={st.id}
@@ -1349,7 +1563,7 @@ export const RightSidebar: React.FC = () => {
               {params.bodyStyle === 'solid' && (
                 <div className="bg-slate-50 border border-dashed border-slate-200 rounded-lg p-2.5 text-[10px] text-slate-500 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
-                  <span>Continuous solid body without cutouts or voids.</span>
+                  <span>Continuous solid body without hub.</span>
                 </div>
               )}
 
@@ -1362,157 +1576,66 @@ export const RightSidebar: React.FC = () => {
                   <input
                     type="range"
                     min={Math.max(params.boreDiameter + 2, 4)}
-                    max="90"
+                    max={Math.max(90, Math.round((dims.rootDiameter || 40) - 2))}
                     step="1"
                     value={params.hubDiameter}
                     onChange={(e) => setGearParam('hubDiameter', parseFloat(e.target.value))}
                     className="w-full accent-orange-500 cursor-pointer"
                   />
-                </div>
-              )}
-
-              {params.bodyStyle === 'spoke' && (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-slate-700">Spoke Cutouts</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{params.holeCount} holes</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="3"
-                    max="8"
-                    step="1"
-                    value={params.holeCount}
-                    onChange={(e) => setGearParam('holeCount', parseInt(e.target.value))}
-                    className="w-full accent-orange-500 cursor-pointer"
-                  />
 
                   <div className="flex justify-between items-center pt-1">
-                    <span className="text-[11px] text-slate-700">Cutout Diameter</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{params.holeDiameter} mm</span>
+                    <span className="text-[11px] text-slate-700">Hub Extension (Offset)</span>
+                    <span className="font-mono text-xs font-bold text-slate-900">{params.hubOffset} mm</span>
                   </div>
                   <input
                     type="range"
-                    min="4"
-                    max="25"
+                    min="1"
+                    max="60"
                     step="1"
-                    value={params.holeDiameter}
-                    onChange={(e) => setGearParam('holeDiameter', parseFloat(e.target.value))}
+                    value={params.hubOffset}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      setGearParams({ hubOffset: val, hubLength: params.faceWidth + val })
+                    }}
                     className="w-full accent-orange-500 cursor-pointer"
                   />
+
+                  {/* Toggle para aplicar buje en ambos lados */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-800 block">Apply to Both Sides</span>
+                      <span className="text-[10px] text-slate-400 block">
+                        {params.hubBothSides
+                          ? 'Symmetrical hub on top & bottom faces'
+                          : 'Protrude only on top face (default)'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setGearParam('hubBothSides', !params.hubBothSides)}
+                      className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                        params.hubBothSides ? 'bg-orange-500' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div
+                        className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                          params.hubBothSides ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1 px-2 py-1.5 bg-slate-50 border border-slate-200/80 rounded-lg text-[10px] text-slate-600">
+                    <span>Total Hub Length (L):</span>
+                    <span className="font-mono font-bold text-slate-800">
+                      {params.faceWidth + (params.hubBothSides ? params.hubOffset * 2 : params.hubOffset)} mm
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
           </>
         )}
-
-        {/* SECTION 4: KINEMATICS & ASSEMBLY */}
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
-            <span>{isRack ? '4 · Kinematics & Assembly' : '4 · Kinematic Meshing Pair'}</span>
-          </div>
-
-          {/* In rack: Highlight card for mounting dimensions and kinematics */}
-          {isRack && (
-            <div className="bg-orange-50/70 border border-orange-200/90 rounded-xl p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wide text-orange-800">
-                  Mounting Dimensions
-                </span>
-                <span className="text-[9px] font-mono text-slate-500">Pitch Tangency</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-                <div className="bg-white p-2 rounded-lg border border-orange-100">
-                  <div className="text-[9.5px] text-slate-400">Mounting Distance (H_mont):</div>
-                  <div className="font-extrabold text-orange-950 text-sm">{dims.mountingDistance} mm</div>
-                  <div className="text-[8.5px] text-slate-400">Rack base → pinion center</div>
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-orange-100">
-                  <div className="text-[9.5px] text-slate-400">Feed per Rev:</div>
-                  <div className="font-extrabold text-orange-950 text-sm">{dims.feedPerRev} mm</div>
-                  <div className="text-[8.5px] text-slate-400">π · d_p per revolution</div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-baseline font-mono text-[10px] text-slate-600 pt-1 border-t border-orange-200/60">
-                <span>Linear speed ({meshingPair.rpm} RPM):</span>
-                <span className="font-bold text-slate-900">{dims.linearVelocity} mm/s</span>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-800 block">
-                {isRack ? 'Simulate Linear Actuator' : 'Couple Mating Gear'}
-              </span>
-              <span className="text-[10px] text-slate-400">
-                {isRack ? 'Animates conjugate linear translation' : 'Inspect mesh & center distance'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMeshingPair('enabled', !meshingPair.enabled)}
-              className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors ${
-                meshingPair.enabled ? 'bg-orange-500' : 'bg-slate-300'
-              }`}
-            >
-              <div
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                  meshingPair.enabled ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {meshingPair.enabled && (
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[11px] text-slate-700">Pinion Speed</span>
-                  <span className="font-mono text-xs font-bold text-slate-900">{meshingPair.rpm} RPM</span>
-                </div>
-                <input
-                  type="range"
-                  min="5"
-                  max="80"
-                  step="1"
-                  value={meshingPair.rpm}
-                  onChange={(e) => setMeshingPair('rpm', parseInt(e.target.value))}
-                  className="w-full accent-orange-500 cursor-pointer"
-                />
-              </div>
-
-              {!isRack && (
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] text-slate-700">Mating Gear Teeth (z2)</span>
-                    <span className="font-mono text-xs font-bold text-slate-900">{meshingPair.teeth2} teeth</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="10"
-                    max="60"
-                    step="1"
-                    value={meshingPair.teeth2}
-                    onChange={(e) => setMeshingPair('teeth2', parseInt(e.target.value))}
-                    className="w-full accent-orange-500 cursor-pointer"
-                  />
-                </div>
-              )}
-
-              {!isRack && (
-                <BacklashPanel
-                  params={params}
-                  teeth2={meshingPair.teeth2}
-                  onApplyThinning={(v) => setGearParam('backlash', v)}
-                  previewDeltaA={meshingPair.previewDeltaA ?? null}
-                  onPreview={(d) => setMeshingPair('previewDeltaA', d)}
-                />
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* FIXED BOTTOM ACTIONS */}
