@@ -4,15 +4,8 @@ import { calculateDimensions, getConjugatePinionParams } from './gearMath'
 
 describe('Dual Gear Conjugate System & Motorization', () => {
   beforeEach(() => {
-    // Reset to defaults
-    useGearStore.getState().selectGear(1)
-    useGearStore.getState().resetCurrentGear()
-    useGearStore.getState().selectGear(2)
-    useGearStore.getState().resetCurrentGear()
-    useGearStore.getState().selectGear(1)
-    useGearStore.getState().setGear2Enabled(false)
-    useGearStore.getState().setMotorized(false)
-    useGearStore.getState().setMotorRpm(25)
+    // Reset all gear type configurations to clean initial state
+    useGearStore.getState().resetAllGearConfigs()
   })
 
   it('enables Gear 2 and preserves independent teeth with calculated center distance', () => {
@@ -226,5 +219,82 @@ describe('Dual Gear Conjugate System & Motorization', () => {
     store.setGearParam('teeth', 50) // Attempt to set larger than ring
     const clampedState = useGearStore.getState()
     expect(clampedState.gear2Params.teeth).toBeLessThanOrEqual(state.gear1Params.teeth - 4)
+  })
+
+  it('isolates gear type configurations: switching to helical does not inherit spur modifications', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+
+    // Customize Spur gear
+    store.setGearParam('teeth', 45)
+    store.setGearParam('module', 3.5)
+    store.setGearParam('boreDiameter', 18)
+    store.setGearParam('bodyStyle', 'hub')
+    store.setGearParam('hubDiameter', 44)
+    store.setGear2Enabled(true)
+    store.selectGear(2)
+    store.setGearParam('teeth', 30)
+
+    let state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('spur')
+    expect(state.gear1Params.teeth).toBe(45)
+    expect(state.gear1Params.module).toBe(3.5)
+    expect(state.gear1Params.boreDiameter).toBe(18)
+    expect(state.gear2Enabled).toBe(true)
+    expect(state.gear2Params.teeth).toBe(30)
+
+    // Switch to Helical Gear via setGearType
+    store.setGearType('helical')
+    state = useGearStore.getState()
+
+    // Helical MUST NOT inherit the spur's custom properties
+    expect(state.gear1Params.gearType).toBe('helical')
+    expect(state.gear1Params.teeth).toBe(26) // Default helical teeth, NOT 45!
+    expect(state.gear1Params.module).toBe(2.5) // Default helical module, NOT 3.5!
+    expect(state.gear1Params.boreDiameter).toBe(0) // Default helical bore, NOT 18!
+    expect(state.gear1Params.bodyStyle).toBe('solid') // Default helical bodyStyle, NOT hub!
+    expect(state.gear2Enabled).toBe(false) // Helical gear 2 not enabled by spur!
+  })
+
+  it('persists session modifications when switching back and forth between gear types', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+
+    // 1. Customize Spur
+    store.setGearParam('teeth', 42)
+    store.setGearParam('module', 3.0)
+    store.setGearParam('faceWidth', 24)
+
+    // 2. Switch to Helical and customize Helical
+    store.setGearType('helical')
+    store.setGearParam('helixAngle', 32)
+    store.setGearParam('faceWidth', 28)
+
+    // 3. Switch to Rack and customize Rack
+    store.setGearType('rack')
+    store.setGearParam('rackLength', 240)
+    store.setGearParam('rackHeight', 35)
+
+    // 4. Switch back to Spur -> MUST retain all Spur customizations
+    store.setGearType('spur')
+    let state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('spur')
+    expect(state.gear1Params.teeth).toBe(42)
+    expect(state.gear1Params.module).toBe(3.0)
+    expect(state.gear1Params.faceWidth).toBe(24)
+
+    // 5. Switch back to Helical -> MUST retain all Helical customizations
+    store.setGearType('helical')
+    state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('helical')
+    expect(state.gear1Params.helixAngle).toBe(32)
+    expect(state.gear1Params.faceWidth).toBe(28)
+
+    // 6. Switch back to Rack -> MUST retain all Rack customizations
+    store.setGearType('rack')
+    state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('rack')
+    expect(state.gear1Params.rackLength).toBe(240)
+    expect(state.gear1Params.rackHeight).toBe(35)
   })
 })

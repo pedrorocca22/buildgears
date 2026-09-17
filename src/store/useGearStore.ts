@@ -15,6 +15,13 @@ export interface ViewSettings {
   cameraProjection: 'perspective' | 'orthographic'
 }
 
+export interface GearTypeSessionConfig {
+  gear1Params: GearParameters
+  gear2Params: GearParameters
+  selectedGear: 1 | 2
+  gear2Enabled: boolean
+}
+
 interface GearStoreState {
   params: GearParameters
   gear1Params: GearParameters
@@ -23,6 +30,8 @@ interface GearStoreState {
   gear2Enabled: boolean
   motorized: boolean
   motorRpm: number
+
+  gearTypeConfigs: Record<GearType, GearTypeSessionConfig>
 
   meshingPair: MeshingPairParameters
   viewSettings: ViewSettings
@@ -43,6 +52,7 @@ interface GearStoreState {
   closeExportModal: () => void
   loadPreset: (presetName: 'default_spur' | 'fast_helical' | 'heavy_herringbone' | 'spoke_drive' | 'planetary_sun' | 'precision_rack') => void
   resetCurrentGear: () => void
+  resetAllGearConfigs: () => void
 }
 
 const defaultParams: GearParameters = {
@@ -66,7 +76,7 @@ const defaultParams: GearParameters = {
   hubLength: 26,
   hubOffset: 4,
   hubBothSides: false,
-  outerRingDiameter: 85,
+  outerRingDiameter: 95,
   rackLength: 160,
   rackHeight: 25,
   rackMountingHoles: true,
@@ -103,6 +113,250 @@ const defaultGear2Params: GearParameters = {
   hasKeyway: false,
 }
 
+export function createDefaultSessionConfig(type: GearType): GearTypeSessionConfig {
+  switch (type) {
+    case 'spur': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'spur',
+        module: 2.5,
+        teeth: 26,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'spur',
+        module: 2.5,
+        teeth: 17,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+
+    case 'helical': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'helical',
+        module: 2.5,
+        teeth: 26,
+        pressureAngle: 20,
+        helixAngle: 20,
+        helixHand: 'right',
+        faceWidth: 22,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'helical',
+        module: 2.5,
+        teeth: 17,
+        pressureAngle: 20,
+        helixAngle: 20,
+        helixHand: 'left',
+        faceWidth: 22,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+
+    case 'herringbone': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'herringbone',
+        module: 2.5,
+        teeth: 26,
+        pressureAngle: 20,
+        helixAngle: 25,
+        helixHand: 'right',
+        faceWidth: 30,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'herringbone',
+        module: 2.5,
+        teeth: 17,
+        pressureAngle: 20,
+        helixAngle: 25,
+        helixHand: 'left',
+        faceWidth: 30,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+
+    case 'internal': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'internal',
+        module: 2.5,
+        teeth: 30,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        outerRingDiameter: 95,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'spur',
+        module: 2.5,
+        teeth: 14,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hubDiameter: 24,
+        hubLength: 24,
+        hubOffset: 4,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+
+    case 'rack': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'rack',
+        module: 2.5,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        rackLength: 160,
+        rackHeight: 25,
+        rackToothType: 'spur',
+        rackMountingHoles: true,
+        rackScrewStandard: 'M5',
+        rackHoleCount: 3,
+        rackHolePosition: 'bottom',
+        rackIncludePinion: true,
+        rackPinionTeeth: 20,
+        rackPinionBore: 0,
+        rackPinionFaceWidth: 20,
+        rackPinionBodyStyle: 'solid',
+        rackPinionHubDiameter: 28,
+        rackPinionHubLength: 26,
+        rackPinionHubOffset: 4,
+        rackPinionHubBothSides: false,
+        rackPinionHasKeyway: false,
+        rackPinionHasToothChamfer: false,
+        rackPinionToothChamfer: 0.6,
+        rackPinionProfileShift: 0.0,
+        rackViewFocus: 'both',
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'spur',
+        module: 2.5,
+        teeth: 20,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 20,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+
+    case 'bevel': {
+      const g1: GearParameters = {
+        ...defaultParams,
+        gearType: 'bevel',
+        module: 2.5,
+        teeth: 24,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 16,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hubDiameter: 30,
+        hubLength: 24,
+        hubOffset: 4,
+        hasKeyway: false,
+      }
+      const g2: GearParameters = {
+        ...defaultGear2Params,
+        gearType: 'bevel',
+        module: 2.5,
+        teeth: 24,
+        pressureAngle: 20,
+        helixAngle: 0,
+        faceWidth: 16,
+        bodyStyle: 'solid',
+        boreDiameter: 0,
+        hubDiameter: 30,
+        hubLength: 24,
+        hubOffset: 4,
+        hasKeyway: false,
+      }
+      return {
+        gear1Params: g1,
+        gear2Params: g2,
+        selectedGear: 1,
+        gear2Enabled: false,
+      }
+    }
+  }
+}
+
+export function createInitialGearTypeConfigs(): Record<GearType, GearTypeSessionConfig> {
+  return {
+    spur: createDefaultSessionConfig('spur'),
+    helical: createDefaultSessionConfig('helical'),
+    herringbone: createDefaultSessionConfig('herringbone'),
+    internal: createDefaultSessionConfig('internal'),
+    rack: createDefaultSessionConfig('rack'),
+    bevel: createDefaultSessionConfig('bevel'),
+  }
+}
+
 // Función auxiliar para adaptar un engranaje receptor ante cambios en el engranaje emisor
 function adaptConjugateParams(
   sender: GearParameters,
@@ -122,7 +376,6 @@ function adaptConjugateParams(
     case 'gearType': {
       const gType = newValue as GearType
       if (gType === 'internal') {
-        // En engranaje interior, la pareja conjugada acoplada es un piñón cilíndrico exterior (spur)
         adapted.gearType = 'spur'
         adapted.helixAngle = 0
         if (adapted.teeth >= sender.teeth) {
@@ -195,18 +448,21 @@ function adaptConjugateParams(
   return adapted
 }
 
+const initialConfigs = createInitialGearTypeConfigs()
+
 export const useGearStore = create<GearStoreState>((set) => ({
-  params: defaultParams,
-  gear1Params: defaultParams,
-  gear2Params: defaultGear2Params,
-  selectedGear: 1,
-  gear2Enabled: false,
+  gearTypeConfigs: initialConfigs,
+  params: initialConfigs.spur.gear1Params,
+  gear1Params: initialConfigs.spur.gear1Params,
+  gear2Params: initialConfigs.spur.gear2Params,
+  selectedGear: initialConfigs.spur.selectedGear,
+  gear2Enabled: initialConfigs.spur.gear2Enabled,
   motorized: false,
   motorRpm: 25,
 
   meshingPair: {
     enabled: false,
-    teeth2: 17,
+    teeth2: initialConfigs.spur.gear2Params.teeth,
     showCenterLine: true,
     animate: false,
     rpm: 25,
@@ -235,10 +491,22 @@ export const useGearStore = create<GearStoreState>((set) => ({
   },
 
   selectGear: (id) =>
-    set((state) => ({
-      selectedGear: id,
-      params: id === 1 ? state.gear1Params : state.gear2Params,
-    })),
+    set((state) => {
+      const currentType = state.gear1Params.gearType
+      return {
+        selectedGear: id,
+        params: id === 1 ? state.gear1Params : state.gear2Params,
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            gear1Params: state.gear1Params,
+            gear2Params: state.gear2Params,
+            selectedGear: id,
+            gear2Enabled: state.gear2Enabled,
+          },
+        },
+      }
+    }),
 
   setGear2Enabled: (enabled) =>
     set((state) => {
@@ -250,6 +518,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
           nextG2.teeth = Math.min(14, Math.max(8, Math.floor(state.gear1Params.teeth * 0.5)))
         }
       }
+      const currentType = state.gear1Params.gearType
       return {
         gear2Enabled: enabled,
         selectedGear: nextSelected,
@@ -259,6 +528,15 @@ export const useGearStore = create<GearStoreState>((set) => ({
           ...state.meshingPair,
           enabled,
           teeth2: nextG2.teeth,
+        },
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            gear1Params: state.gear1Params,
+            gear2Params: nextG2,
+            selectedGear: nextSelected,
+            gear2Enabled: enabled,
+          },
         },
       }
     }),
@@ -283,6 +561,39 @@ export const useGearStore = create<GearStoreState>((set) => ({
 
   setGearParam: (key, value) =>
     set((state) => {
+      if (key === 'gearType') {
+        const targetType = value as GearType
+        const currentType = state.gear1Params.gearType
+        if (currentType === targetType) return state
+
+        const currentConfig: GearTypeSessionConfig = {
+          gear1Params: state.gear1Params,
+          gear2Params: state.gear2Params,
+          selectedGear: state.selectedGear,
+          gear2Enabled: state.gear2Enabled,
+        }
+
+        const targetConfig = state.gearTypeConfigs[targetType] || createDefaultSessionConfig(targetType)
+
+        return {
+          gearTypeConfigs: {
+            ...state.gearTypeConfigs,
+            [currentType]: currentConfig,
+            [targetType]: targetConfig,
+          },
+          gear1Params: targetConfig.gear1Params,
+          gear2Params: targetConfig.gear2Params,
+          selectedGear: targetConfig.selectedGear,
+          gear2Enabled: targetConfig.gear2Enabled,
+          params: targetConfig.selectedGear === 1 ? targetConfig.gear1Params : targetConfig.gear2Params,
+          meshingPair: {
+            ...state.meshingPair,
+            enabled: targetConfig.gear2Enabled,
+            teeth2: targetConfig.gear2Params.teeth,
+          },
+        }
+      }
+
       const isG1 = state.selectedGear === 1
       const active = isG1 ? state.gear1Params : state.gear2Params
       const other = isG1 ? state.gear2Params : state.gear1Params
@@ -304,6 +615,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
 
       const newG1 = isG1 ? updatedActive : updatedOther
       const newG2 = isG1 ? updatedOther : updatedActive
+      const currentType = newG1.gearType
 
       return {
         gear1Params: newG1,
@@ -312,6 +624,15 @@ export const useGearStore = create<GearStoreState>((set) => ({
         meshingPair: {
           ...state.meshingPair,
           teeth2: newG2.teeth,
+        },
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            gear1Params: newG1,
+            gear2Params: newG2,
+            selectedGear: state.selectedGear,
+            gear2Enabled: state.gear2Enabled,
+          },
         },
       }
     }),
@@ -328,6 +649,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
 
       const newG1 = isG1 ? active : other
       const newG2 = isG1 ? other : active
+      const currentType = newG1.gearType
 
       return {
         gear1Params: newG1,
@@ -337,17 +659,54 @@ export const useGearStore = create<GearStoreState>((set) => ({
           ...state.meshingPair,
           teeth2: newG2.teeth,
         },
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            gear1Params: newG1,
+            gear2Params: newG2,
+            selectedGear: state.selectedGear,
+            gear2Enabled: state.gear2Enabled,
+          },
+        },
       }
     }),
 
-  setGearType: (type) => {
-    useGearStore.getState().setGearParam('gearType', type)
-  },
+  setGearType: (type) =>
+    set((state) => {
+      const currentType = state.gear1Params.gearType
+      if (currentType === type) return state
+
+      const currentConfig: GearTypeSessionConfig = {
+        gear1Params: state.gear1Params,
+        gear2Params: state.gear2Params,
+        selectedGear: state.selectedGear,
+        gear2Enabled: state.gear2Enabled,
+      }
+
+      const targetConfig = state.gearTypeConfigs[type] || createDefaultSessionConfig(type)
+
+      return {
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: currentConfig,
+          [type]: targetConfig,
+        },
+        gear1Params: targetConfig.gear1Params,
+        gear2Params: targetConfig.gear2Params,
+        selectedGear: targetConfig.selectedGear,
+        gear2Enabled: targetConfig.gear2Enabled,
+        params: targetConfig.selectedGear === 1 ? targetConfig.gear1Params : targetConfig.gear2Params,
+        meshingPair: {
+          ...state.meshingPair,
+          enabled: targetConfig.gear2Enabled,
+          teeth2: targetConfig.gear2Params.teeth,
+        },
+      }
+    }),
 
   setMeshingPair: (key, value) =>
     set((state) => {
       const newMeshingPair = { ...state.meshingPair, [key]: value }
-      // Sincronizar hacia Gear 2 y motorización si se modifica meshingPair directamente
       let nextGear2 = state.gear2Params
       let nextGear2Enabled = state.gear2Enabled
       let nextMotorized = state.motorized
@@ -363,6 +722,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         nextGear2 = { ...nextGear2, teeth: Number(value) }
       }
 
+      const currentType = state.gear1Params.gearType
       return {
         meshingPair: newMeshingPair,
         gear2Enabled: nextGear2Enabled,
@@ -370,6 +730,15 @@ export const useGearStore = create<GearStoreState>((set) => ({
         motorRpm: nextMotorRpm,
         gear2Params: nextGear2,
         params: state.selectedGear === 2 ? nextGear2 : state.gear1Params,
+        gearTypeConfigs: {
+          ...state.gearTypeConfigs,
+          [currentType]: {
+            gear1Params: state.gear1Params,
+            gear2Params: nextGear2,
+            selectedGear: state.selectedGear,
+            gear2Enabled: nextGear2Enabled,
+          },
+        },
       }
     }),
 
@@ -411,25 +780,47 @@ export const useGearStore = create<GearStoreState>((set) => ({
 
   resetCurrentGear: () =>
     set((state) => {
+      const currentType = state.gear1Params.gearType
       if (state.selectedGear === 1) {
-        const resetG1: GearParameters = { ...defaultParams, gearType: state.gear1Params.gearType }
-        const updatedG2 = adaptConjugateParams(resetG1, state.gear2Params, 'module', resetG1.module)
+        const fresh = createDefaultSessionConfig(currentType)
         return {
-          gear1Params: resetG1,
-          gear2Params: updatedG2,
-          params: resetG1,
+          gear1Params: fresh.gear1Params,
+          gear2Params: fresh.gear2Params,
+          selectedGear: 1,
+          gear2Enabled: fresh.gear2Enabled,
+          params: fresh.gear1Params,
+          gearTypeConfigs: {
+            ...state.gearTypeConfigs,
+            [currentType]: fresh,
+          },
+          meshingPair: {
+            ...state.meshingPair,
+            enabled: fresh.gear2Enabled,
+            teeth2: fresh.gear2Params.teeth,
+          },
         }
       } else {
-        const resetG2: GearParameters = {
-          ...defaultGear2Params,
+        const fresh = createDefaultSessionConfig(currentType)
+        let resetG2 = fresh.gear2Params
+        resetG2 = {
+          ...resetG2,
           module: state.gear1Params.module,
           pressureAngle: state.gear1Params.pressureAngle,
-          helixAngle: state.gear1Params.helixAngle,
-          helixHand: state.gear1Params.helixHand === 'right' ? 'left' : 'right',
-          gearType: state.gear1Params.gearType,
           toothProfileType: state.gear1Params.toothProfileType,
           addendumCoeff: state.gear1Params.addendumCoeff,
           dedendumCoeff: state.gear1Params.dedendumCoeff,
+        }
+        if (currentType === 'helical' || currentType === 'herringbone') {
+          resetG2.helixAngle = state.gear1Params.helixAngle
+          resetG2.helixHand = state.gear1Params.helixHand === 'right' ? 'left' : 'right'
+          resetG2.faceWidth = state.gear1Params.faceWidth
+        } else if (currentType === 'internal') {
+          resetG2.gearType = 'spur'
+          resetG2.helixAngle = 0
+          resetG2.faceWidth = state.gear1Params.faceWidth
+          if (resetG2.teeth >= state.gear1Params.teeth) {
+            resetG2.teeth = Math.min(14, Math.max(8, Math.floor(state.gear1Params.teeth * 0.5)))
+          }
         }
         return {
           gear2Params: resetG2,
@@ -438,14 +829,46 @@ export const useGearStore = create<GearStoreState>((set) => ({
             ...state.meshingPair,
             teeth2: resetG2.teeth,
           },
+          gearTypeConfigs: {
+            ...state.gearTypeConfigs,
+            [currentType]: {
+              gear1Params: state.gear1Params,
+              gear2Params: resetG2,
+              selectedGear: 2,
+              gear2Enabled: state.gear2Enabled,
+            },
+          },
         }
       }
     }),
 
+  resetAllGearConfigs: () =>
+    set(() => {
+      const initial = createInitialGearTypeConfigs()
+      return {
+        gearTypeConfigs: initial,
+        gear1Params: initial.spur.gear1Params,
+        gear2Params: initial.spur.gear2Params,
+        selectedGear: 1,
+        gear2Enabled: false,
+        params: initial.spur.gear1Params,
+        meshingPair: {
+          enabled: false,
+          teeth2: initial.spur.gear2Params.teeth,
+          showCenterLine: true,
+          animate: false,
+          rpm: 25,
+          previewDeltaA: null,
+        },
+      }
+    }),
+
   loadPreset: (presetName) => {
+    let targetType: GearType = 'spur'
     let presetG1: Partial<GearParameters> = {}
     switch (presetName) {
       case 'default_spur':
+        targetType = 'spur'
         presetG1 = {
           gearType: 'spur',
           module: 2.5,
@@ -458,6 +881,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         }
         break
       case 'fast_helical':
+        targetType = 'helical'
         presetG1 = {
           gearType: 'helical',
           module: 2.0,
@@ -474,6 +898,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         }
         break
       case 'heavy_herringbone':
+        targetType = 'herringbone'
         presetG1 = {
           gearType: 'herringbone',
           module: 3.0,
@@ -489,6 +914,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         }
         break
       case 'spoke_drive':
+        targetType = 'spur'
         presetG1 = {
           gearType: 'spur',
           module: 3.5,
@@ -503,6 +929,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         }
         break
       case 'planetary_sun':
+        targetType = 'internal'
         presetG1 = {
           gearType: 'internal',
           module: 2.0,
@@ -514,6 +941,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
         }
         break
       case 'precision_rack':
+        targetType = 'rack'
         presetG1 = {
           gearType: 'rack',
           module: 2.0,
@@ -535,15 +963,49 @@ export const useGearStore = create<GearStoreState>((set) => ({
     }
 
     set((state) => {
-      const newG1: GearParameters = { ...state.gear1Params, ...presetG1 }
-      let newG2: GearParameters = { ...state.gear2Params }
+      const currentType = state.gear1Params.gearType
+      const currentConfig: GearTypeSessionConfig = {
+        gear1Params: state.gear1Params,
+        gear2Params: state.gear2Params,
+        selectedGear: state.selectedGear,
+        gear2Enabled: state.gear2Enabled,
+      }
+
+      const baseConfig =
+        currentType === targetType
+          ? {
+              gear1Params: state.gear1Params,
+              gear2Params: state.gear2Params,
+              selectedGear: state.selectedGear,
+              gear2Enabled: state.gear2Enabled,
+            }
+          : state.gearTypeConfigs[targetType] || createDefaultSessionConfig(targetType)
+
+      const newG1: GearParameters = { ...baseConfig.gear1Params, ...presetG1 }
+      let newG2: GearParameters = { ...baseConfig.gear2Params }
       for (const [k, v] of Object.entries(presetG1)) {
         newG2 = adaptConjugateParams(newG1, newG2, k as keyof GearParameters, v)
       }
-      return {
+
+      const nextTargetConfig: GearTypeSessionConfig = {
         gear1Params: newG1,
         gear2Params: newG2,
-        params: state.selectedGear === 1 ? newG1 : newG2,
+        selectedGear: 1,
+        gear2Enabled: baseConfig.gear2Enabled,
+      }
+
+      const updatedConfigs = {
+        ...state.gearTypeConfigs,
+        [currentType]: currentConfig,
+        [targetType]: nextTargetConfig,
+      }
+
+      return {
+        gearTypeConfigs: updatedConfigs,
+        gear1Params: newG1,
+        gear2Params: newG2,
+        selectedGear: 1,
+        params: newG1,
         meshingPair: {
           ...state.meshingPair,
           teeth2: newG2.teeth,
@@ -552,3 +1014,4 @@ export const useGearStore = create<GearStoreState>((set) => ({
     })
   },
 }))
+

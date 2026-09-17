@@ -3,7 +3,7 @@ import { useGearStore } from '../store/useGearStore'
 import type { GearType } from '../cad/types'
 
 export const LeftSidebar: React.FC = () => {
-  const currentType = useGearStore((s) => s.params.gearType)
+  const currentType = useGearStore((s) => s.gear1Params.gearType)
   const setGearType = useGearStore((s) => s.setGearType)
 
   const catalogItems: { id: GearType; label: string; desc: string }[] = [
