@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useGearStore } from '../store/useGearStore'
-import { calculateDimensions } from './gearMath'
+import { calculateDimensions, getConjugatePinionParams } from './gearMath'
 
 describe('Dual Gear Conjugate System & Motorization', () => {
   beforeEach(() => {
@@ -103,6 +103,57 @@ describe('Dual Gear Conjugate System & Motorization', () => {
     expect(state.gear2Params.helixAngle).toBe(25)
     expect(state.gear1Params.helixHand).toBe('right')
     expect(state.gear2Params.helixHand).toBe('left') // Opposite hand for mating!
+  })
+
+  it('synchronizes herringbone angle and inverts helix hand for external herringbone meshing', () => {
+    const store = useGearStore.getState()
+    store.setGear2Enabled(true)
+    store.selectGear(1)
+
+    store.setGearParam('gearType', 'herringbone')
+    store.setGearParam('helixAngle', 30)
+    store.setGearParam('helixHand', 'right')
+
+    const state = useGearStore.getState()
+    expect(state.gear1Params.gearType).toBe('herringbone')
+    expect(state.gear2Params.gearType).toBe('herringbone')
+    expect(state.gear1Params.helixAngle).toBe(30)
+    expect(state.gear2Params.helixAngle).toBe(30)
+    expect(state.gear1Params.helixHand).toBe('right')
+    expect(state.gear2Params.helixHand).toBe('left') // Opposite hand for herringbone chevrons to nest!
+  })
+
+  it('preserves the SAME helix hand for rack and pinion in helical and herringbone modes', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearParam('gearType', 'rack')
+
+    // Helical rack with Right Hand
+    store.setGearParam('rackToothType', 'helical')
+    store.setGearParam('helixAngle', 20)
+    store.setGearParam('helixHand', 'right')
+
+    let state = useGearStore.getState()
+    let pinion = getConjugatePinionParams(state.gear1Params)
+    expect(pinion.gearType).toBe('helical')
+    expect(pinion.helixAngle).toBe(20)
+    expect(pinion.helixHand).toBe('right') // MUST be the SAME hand as the rack for parallel teeth!
+
+    // Helical rack with Left Hand
+    store.setGearParam('helixHand', 'left')
+    state = useGearStore.getState()
+    pinion = getConjugatePinionParams(state.gear1Params)
+    expect(pinion.helixHand).toBe('left') // Matching left hand
+
+    // Herringbone rack
+    store.setGearParam('rackToothType', 'herringbone')
+    store.setGearParam('helixAngle', 25)
+    store.setGearParam('helixHand', 'right')
+    state = useGearStore.getState()
+    pinion = getConjugatePinionParams(state.gear1Params)
+    expect(pinion.gearType).toBe('herringbone')
+    expect(pinion.helixAngle).toBe(25)
+    expect(pinion.helixHand).toBe('right') // Matching hand for V-chevrons to nest
   })
 
   it('keeps physical body features independent between gears', () => {

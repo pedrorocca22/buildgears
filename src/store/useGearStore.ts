@@ -124,11 +124,9 @@ function adaptConjugateParams(
     case 'gearType': {
       const gType = newValue as GearType
       adapted.gearType = gType
-      if (gType === 'helical') {
+      if (gType === 'helical' || gType === 'herringbone') {
         adapted.helixAngle = sender.helixAngle || 20
         adapted.helixHand = sender.helixHand === 'right' ? 'left' : 'right'
-      } else if (gType === 'herringbone') {
-        adapted.helixAngle = sender.helixAngle || 20
       } else if (gType === 'spur') {
         adapted.helixAngle = 0
       }

@@ -511,7 +511,7 @@ export const RightSidebar: React.FC = () => {
                   </div>
                   {isRack && (
                     <p className="text-[9.5px] text-slate-400 leading-tight pt-1">
-                      * Pinion automatically adopts the complementary opposite hand ({params.helixHand === 'right' ? 'LH' : 'RH'}) for a 180° conjugate mesh.
+                      * Pinion automatically adopts matching helix hand ({params.helixHand === 'right' ? 'RH' : 'LH'}) for parallel conjugate contact.
                     </p>
                   )}
                 </div>

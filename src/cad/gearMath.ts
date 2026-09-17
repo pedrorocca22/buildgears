@@ -482,7 +482,7 @@ export function getConjugatePinionParams(params: GearParameters): GearParameters
     gearType: pinionGearType,
     teeth: params.rackPinionTeeth || 20,
     helixAngle: effAngle,
-    helixHand: (params.helixHand === 'right' ? 'left' : 'right'),
+    helixHand: params.helixHand || 'right',
     faceWidth: params.rackPinionFaceWidth || params.faceWidth,
     boreDiameter: params.rackPinionBore ?? 0,
     hasKeyway: Boolean(params.rackPinionHasKeyway),

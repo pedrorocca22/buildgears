@@ -221,7 +221,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
     } else if (gearType === 'helical') {
       const twist = dims.twistAngleDeg
       const divisions = Math.max(16, Math.ceil(Math.abs(twist) / 1.5))
-      gearSolid = cs.extrude(faceWidth, divisions, twist, [1, 1], true)
+      gearSolid = cs.extrude(faceWidth, divisions, twist, [1, 1], true).rotate([0, 0, -twist / 2])
     } else if (gearType === 'herringbone') {
       // Doble hélice / Espiga continua simétrica:
       // Se extruye la mitad superior desde Z=0 con torsión +halfTwist,
