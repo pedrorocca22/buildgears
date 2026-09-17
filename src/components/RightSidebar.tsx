@@ -25,10 +25,17 @@ export const RightSidebar: React.FC = () => {
   const isHerringbone = params.gearType === 'herringbone' || (params.gearType === 'rack' && params.rackToothType === 'herringbone')
   const isHelical = params.gearType === 'helical' || params.gearType === 'herringbone' || (params.gearType === 'rack' && (params.rackToothType === 'helical' || params.rackToothType === 'herringbone'))
   const isRack = params.gearType === 'rack'
+  const isPairActive = isRack ? (gear1Params.rackIncludePinion !== false) : gear2Enabled
   const standardKeyway = getDIN6885Keyway(params.boreDiameter > 0 ? params.boreDiameter : 18)
   const pinionKeyway = getDIN6885Keyway(params.rackPinionBore && params.rackPinionBore > 0 ? params.rackPinionBore : 14)
   const dinScrew = getDIN912Screw(params.rackScrewStandard || 'M5')
-  const dims = calculateDimensions(params, gear2Enabled ? gear2Params.teeth : undefined)
+
+  const matingTeeth = isRack
+    ? (gear1Params.rackPinionTeeth || 20)
+    : isPairActive
+    ? (selectedGear === 1 ? gear2Params.teeth : gear1Params.teeth)
+    : undefined
+  const dims = calculateDimensions(params, matingTeeth)
 
   const effBeta = (params.gearType === 'helical' || params.gearType === 'herringbone') && params.helixAngle ? params.helixAngle : 0
   const betaRad = (effBeta * Math.PI) / 180
@@ -214,6 +221,41 @@ export const RightSidebar: React.FC = () => {
                         {gearRatio.toFixed(3)}
                       </div>
                       <div className="text-[8.5px] text-slate-400">Speed factor</div>
+                    </div>
+                  </div>
+
+                  {/* Contact Ratio & Hunting Tooth Kinematics */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                    <div className={`p-2 rounded-lg border ${
+                      dims.contactRatioStatus === 'optimal'
+                        ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                        : dims.contactRatioStatus === 'acceptable'
+                        ? 'bg-teal-50/70 border-teal-200 text-teal-950'
+                        : dims.contactRatioStatus === 'marginal'
+                        ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                        : 'bg-rose-50 border-rose-200 text-rose-950'
+                    }`}>
+                      <div className="text-[9px] opacity-70">Contact Ratio (ε_α):</div>
+                      <div className="font-extrabold text-sm flex items-center gap-1">
+                        <span>{dims.contactRatio ?? '—'}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1 py-0.2 rounded bg-white/80 border border-current/20">
+                          {dims.contactRatioStatus || '—'}
+                        </span>
+                      </div>
+                      <div className="text-[8.5px] opacity-70">
+                        {dims.contactRatioStatus === 'optimal' ? 'Smooth tooth handover' : 'Min limit: 1.2'}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2 rounded-lg border border-slate-200/60">
+                      <div className="text-[9px] text-slate-400">Tooth Wear Cycle:</div>
+                      <div className="font-extrabold text-slate-900 text-xs mt-0.5 flex items-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${dims.huntingToothStatus === 'optimal' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                        <span>{dims.huntingToothStatus === 'optimal' ? 'Uniform (1:1)' : `Repeat (gcd ${dims.gcdTeeth})`}</span>
+                      </div>
+                      <div className="text-[8.5px] text-slate-400">
+                        {dims.huntingToothStatus === 'optimal' ? 'Hunting tooth active' : 'Periodic contact cycle'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -577,6 +619,43 @@ export const RightSidebar: React.FC = () => {
                     >
                       Auto-correct to x = +{dims.recommendedShift.toFixed(2)}
                     </button>
+                  </div>
+                )}
+
+                {/* Pointed Crest Top Land Warning */}
+                {dims.topLandStatus !== 'safe' && (
+                  <div className={`mt-2 p-2 rounded-lg text-[10px] space-y-1 border ${
+                    dims.topLandStatus === 'warning'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : 'bg-rose-50 border-rose-200 text-rose-900'
+                  }`}>
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className={`w-1.5 h-1.5 rounded-full ${dims.topLandStatus === 'warning' ? 'bg-amber-500' : 'bg-rose-500 animate-pulse'}`} />
+                      Pointed tooth crest risk (sa = {dims.topLandThickness} mm &lt; {dims.minRecommendedTopLand} mm)
+                    </div>
+                    <p className="text-[9.5px] opacity-80 leading-tight">
+                      Excess positive profile shift thins the tooth crest, causing brittle breakage risk under heavy contact load.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setGearParam('profileShift', Math.max(0, Number((params.profileShift - 0.15).toFixed(2))))}
+                      className="mt-1 w-full py-1 px-2 rounded-md bg-slate-800 hover:bg-slate-900 text-white font-bold text-[10px] shadow-xs transition-colors"
+                    >
+                      Reduce shift to widen crest (x - 0.15)
+                    </button>
+                  </div>
+                )}
+
+                {/* Internal Gear Trochoidal Tip Interference Alert */}
+                {dims.internalInterferenceWarning && (
+                  <div className="mt-2 p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-[10px] space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                      Trochoidal tip interference (Δz &lt; 8)
+                    </div>
+                    <p className="text-[9.5px] text-rose-700 leading-tight">
+                      In internal gear pairs, a tooth count difference Δz &lt; 8 causes interference as pinion teeth swing into mesh. Increase ring teeth or reduce pinion teeth.
+                    </p>
                   </div>
                 )}
               </div>
@@ -959,6 +1038,19 @@ export const RightSidebar: React.FC = () => {
                       >
                         Auto-correct pinion profile to x_p = +{(dims.pinionRecommendedShift || 0).toFixed(2)}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Rack & Pinion Contact Ratio Metric */}
+                  {dims.contactRatio != null && (
+                    <div className="mt-2 p-2 rounded-lg bg-emerald-50/70 border border-emerald-200/80 text-[10px] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>Contact Ratio (ε_α):</span>
+                      </div>
+                      <span className="font-mono font-extrabold text-emerald-800">
+                        {dims.contactRatio} ({dims.contactRatioStatus})
+                      </span>
                     </div>
                   )}
                 </div>

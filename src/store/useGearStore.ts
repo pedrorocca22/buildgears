@@ -9,6 +9,7 @@ export interface ViewSettings {
   showGrid: boolean
   flatColor: FlatColor
   showDimensions: boolean
+  showContactZone: boolean
   sectionCut: boolean
   sectionPosition: number // -1 a 1
   cameraView: 'iso' | 'front' | 'top' | 'left' | 'right'
@@ -475,6 +476,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
     showGrid: true,
     flatColor: 'mustard',
     showDimensions: false,
+    showContactZone: true,
     sectionCut: false,
     sectionPosition: 0,
     cameraView: 'iso',

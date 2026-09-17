@@ -120,6 +120,19 @@ export interface CalculatedDimensions {
   recommendedShift: number    // Desplazamiento mínimo recomendado para eliminar socavado
   axialThrustRatio: number    // Porcentaje de empuje axial (0 para recto/espiga, sin(beta) para helicoidal)
 
+  // Nuevas métricas cinemáticas y buenas prácticas mecánicas
+  contactRatio?: number       // Ratio de contacto transversal ε_α
+  contactRatioStatus?: 'optimal' | 'acceptable' | 'marginal' | 'critical' // Estado cinemático
+  overlapRatio?: number       // Ratio de recubrimiento helicoidal ε_β
+  totalContactRatio?: number  // Ratio total de contacto ε_γ = ε_α + ε_β
+  topLandThickness: number    // Espesor de la cresta en la punta s_a (mm)
+  topLandStatus: 'safe' | 'warning' | 'critical' // Estado de seguridad de cresta
+  minRecommendedTopLand: number // Espesor mínimo recomendado (0.25 * m)
+  maxSafeShift?: number       // Desplazamiento máximo antes de que la punta se vuelva crítica
+  internalInterferenceWarning?: boolean // Alerta de interferencia trocoidal (z1 - z2 < 8)
+  huntingToothStatus?: 'optimal' | 'cyclic' // 'optimal' si gcd(z1, z2) = 1 (desgaste uniforme)
+  gcdTeeth?: number           // Máximo común divisor de dientes
+
   // Métricas específicas de mecanismo de cremallera y piñón
   rackToothCount?: number     // Dientes útiles mecanizados en la longitud
   rackTotalHeight?: number    // Altura total hasta cresta de diente

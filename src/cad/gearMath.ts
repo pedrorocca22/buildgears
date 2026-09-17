@@ -84,6 +84,48 @@ export function calculateDimensions(
   const isSpur = gearType === 'spur' || (gearType === 'rack' && (params.rackToothType === 'spur' || !params.rackToothType && !effectiveBetaDeg))
   const axialThrustRatio = isHerringbone || isSpur || effectiveBetaDeg === 0 ? 0 : Number(Math.sin(betaRad).toFixed(3))
 
+  // 1. Espesor en cresta de cabeza (Top Land Thickness s_a)
+  let topLandThickness = 0
+  let topLandStatus: 'safe' | 'warning' | 'critical' = 'safe'
+  const minRecommendedTopLand = Number((0.25 * mn).toFixed(3))
+
+  if (gearType !== 'rack') {
+    // Presión transversal aparente en el diámetro de cabeza (da = 2 * ra)
+    const cosAlphaAt = ra > rb ? rb / ra : 1.0
+    const alphaAt = Math.acos(Math.min(1.0, Math.max(0.0, cosAlphaAt)))
+    const invAlphaT = Math.tan(alphaT) - alphaT
+    const invAlphaAt = Math.tan(alphaAt) - alphaAt
+    // Espesor en el diámetro primitivo
+    const normalPitchThickness = mn * (Math.PI / 2 + 2 * x * Math.tan(alphaRad)) - (params.backlash ?? 0.05) / 2
+    const transversePitchThickness = normalPitchThickness / (betaRad !== 0 ? Math.cos(betaRad) : 1)
+    // Espesor en la punta según la función de involuta
+    const sat = da * (transversePitchThickness / d + invAlphaT - invAlphaAt)
+    const san = sat * (betaRad !== 0 ? Math.cos(betaRad) : 1)
+    topLandThickness = Math.max(0, Number(san.toFixed(3)))
+
+    if (topLandThickness >= minRecommendedTopLand) {
+      topLandStatus = 'safe'
+    } else if (topLandThickness >= 0.12 * mn) {
+      topLandStatus = 'warning'
+    } else {
+      topLandStatus = 'critical'
+    }
+  } else {
+    // En cremallera: el espesor en la cresta es s_a = p/2 - 2 * ha * tan(alpha)
+    const rackNormalPitch = Math.PI * mn
+    const rackTipThick = rackNormalPitch / 2 - 2 * ha * Math.tan(alphaRad)
+    topLandThickness = Math.max(0, Number(rackTipThick.toFixed(3)))
+    topLandStatus = topLandThickness >= minRecommendedTopLand ? 'safe' : topLandThickness >= 0.12 * mn ? 'warning' : 'critical'
+  }
+
+  // 2. Ratio de contacto (Contact Ratio eps_alpha, eps_beta, eps_gamma)
+  let contactRatio: number | undefined = undefined
+  let contactRatioStatus: 'optimal' | 'acceptable' | 'marginal' | 'critical' | undefined = undefined
+  let overlapRatio: number | undefined = undefined
+  let totalContactRatio: number | undefined = undefined
+
+  const pbt = Math.PI * mt * Math.cos(alphaT) // Paso base aparente
+
   let centerDistance: number | undefined = undefined
   let gearRatio: number | undefined = undefined
 
@@ -100,9 +142,7 @@ export function calculateDimensions(
   const pinionRootRadius = Number(Math.max(0.5, pinionPitchRadius - (hfCoeff - xp) * mn).toFixed(3))
 
   // Posición operativa Y del centro del piñón respecto a la línea primitiva de la cremallera (Y=0)
-  // Bajo la ley de engrane conjugado con desplazamiento x_p: Y = r_p + x_p * m
   const pinionOperatingY = Number((pinionPitchRadius + xp * mn).toFixed(3))
-  // Distancia de montaje desde la base de la barra (Y = -rHeight) al centro del eje del piñón
   const mountingDistance = Number((rHeight + pinionOperatingY).toFixed(3))
 
   const pinionRecommendedShift = Math.max(0, Number(((undercutLimitZ - pTeeth) / undercutLimitZ * haCoeff).toFixed(2)))
@@ -114,11 +154,77 @@ export function calculateDimensions(
   if (gearType === 'rack') {
     centerDistance = pinionOperatingY
     gearRatio = pTeeth
+
+    // Contact ratio para piñón y cremallera:
+    // Trayectoria activa de contacto: g_alpha = sqrt(rap^2 - rbp^2) - rpp * sin(alphaT) + (ha_rack) / sin(alphaT)
+    const rbp = pinionPitchRadius * Math.cos(alphaT)
+    const termPinion = Math.sqrt(Math.max(0, pinionTipRadius * pinionTipRadius - rbp * rbp)) - pinionPitchRadius * Math.sin(alphaT)
+    const termRack = (haCoeff * mn) / Math.max(0.01, Math.sin(alphaT))
+    const gAlpha = termPinion + termRack
+    contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
   } else if (teeth2 && teeth2 > 0) {
-    centerDistance = gearType === 'internal'
-      ? Math.abs((mt * (z - teeth2)) / 2)
-      : (mt * (z + teeth2)) / 2
-    gearRatio = teeth2 / z
+    const z2 = teeth2
+    const rp2 = (mt * z2) / 2
+    const rb2 = rp2 * Math.cos(alphaT)
+    const ha2 = haCoeff * mn
+    const ra2 = rp2 + ha2
+
+    if (gearType === 'internal') {
+      centerDistance = Math.abs((mt * (z - teeth2)) / 2)
+      gearRatio = teeth2 / z
+
+      // Para corona interior con piñón:
+      // La corona tiene sus dientes hacia adentro: el radio de cresta es menor al de rodadura: ra_int = rp - ha
+      const raInternal = Math.max(0.5, rp - ha)
+      const gAlpha = Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) -
+                     Math.sqrt(Math.max(0, raInternal * raInternal - rb * rb)) +
+                     (rp - rp2) * Math.sin(alphaT)
+      contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
+    } else {
+      centerDistance = (mt * (z + teeth2)) / 2
+      gearRatio = teeth2 / z
+
+      // Engranajes cilíndricos exteriores estándar:
+      const gAlpha = Math.sqrt(Math.max(0, ra * ra - rb * rb)) +
+                     Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) -
+                     (rp + rp2) * Math.sin(alphaT)
+      contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
+    }
+  }
+
+  if (contactRatio != null) {
+    if (contactRatio >= 1.4) {
+      contactRatioStatus = 'optimal'
+    } else if (contactRatio >= 1.2) {
+      contactRatioStatus = 'acceptable'
+    } else if (contactRatio >= 1.0) {
+      contactRatioStatus = 'marginal'
+    } else {
+      contactRatioStatus = 'critical'
+    }
+
+    if (betaRad !== 0) {
+      overlapRatio = Number(((b * Math.sin(betaRad)) / (Math.PI * mn)).toFixed(2))
+      totalContactRatio = Number((contactRatio + overlapRatio).toFixed(2))
+    }
+  }
+
+  // 3. Alerta de interferencia trocoidal en coronas interiores
+  let internalInterferenceWarning = false
+  if (gearType === 'internal' && teeth2 && teeth2 > 0) {
+    const deltaZ = z - teeth2
+    if (deltaZ < 8) {
+      internalInterferenceWarning = true
+    }
+  }
+
+  // 4. Hunting Tooth / Desgaste Uniforme
+  let huntingToothStatus: 'optimal' | 'cyclic' | undefined = undefined
+  let gcdTeeth: number | undefined = undefined
+  if (teeth2 && teeth2 > 0 && gearType !== 'rack') {
+    const g = gcd(z, teeth2)
+    gcdTeeth = g
+    huntingToothStatus = g === 1 ? 'optimal' : 'cyclic'
   }
 
   return {
@@ -139,6 +245,19 @@ export function calculateDimensions(
     hasUndercutWarning,
     recommendedShift,
     axialThrustRatio,
+
+    // Diagnósticos cinemáticos avanzados
+    contactRatio,
+    contactRatioStatus,
+    overlapRatio,
+    totalContactRatio,
+    topLandThickness,
+    topLandStatus,
+    minRecommendedTopLand,
+    internalInterferenceWarning,
+    huntingToothStatus,
+    gcdTeeth,
+
     rackToothCount,
     rackTotalHeight: Number(rackTotalHeight.toFixed(3)),
     feedPerRev,
@@ -151,6 +270,17 @@ export function calculateDimensions(
     pinionUndercutWarning,
     pinionRecommendedShift,
   }
+}
+
+export function gcd(a: number, b: number): number {
+  let x = Math.round(Math.abs(a))
+  let y = Math.round(Math.abs(b))
+  while (y) {
+    const t = y
+    y = x % y
+    x = t
+  }
+  return x || 1
 }
 
 

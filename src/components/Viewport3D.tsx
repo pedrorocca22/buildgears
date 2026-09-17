@@ -20,6 +20,7 @@ export const Viewport3D: React.FC = () => {
   const centerLineRef = useRef<THREE.Line | null>(null)
   const clippingPlaneRef = useRef<THREE.Plane | null>(null)
   const dimensionsGroupRef = useRef<THREE.Group | null>(null)
+  const contactZoneGroupRef = useRef<THREE.Group | null>(null)
 
   const [, setTrianglesCount] = useState<number>(0)
   const [, setIsGenerating] = useState<boolean>(false)
@@ -155,6 +156,12 @@ export const Viewport3D: React.FC = () => {
     dimGroup.name = 'floor-dimensions'
     scene.add(dimGroup)
     dimensionsGroupRef.current = dimGroup
+
+    // Grupo para zona de contacto y línea de engrane 3D
+    const contactGroup = new THREE.Group()
+    contactGroup.name = 'contact-zone'
+    scene.add(contactGroup)
+    contactZoneGroupRef.current = contactGroup
 
     // Bucle de renderizado y animación
     let animationFrameId: number
@@ -600,6 +607,146 @@ export const Viewport3D: React.FC = () => {
     viewSettings.showDimensions,
   ])
 
+  // Visualización 3D en tiempo real de la Zona de Contacto, Circunferencias Primitivas y Línea de Engrane
+  useEffect(() => {
+    if (!sceneRef.current || !contactZoneGroupRef.current) return
+    const contactGroup = contactZoneGroupRef.current
+
+    // Limpiar geometrías previas
+    while (contactGroup.children.length > 0) {
+      const child = contactGroup.children[0]
+      contactGroup.remove(child)
+      child.traverse((node: any) => {
+        if (node.geometry) node.geometry.dispose()
+        if (node.material) {
+          if (Array.isArray(node.material)) {
+            node.material.forEach((m: any) => m.dispose())
+          } else {
+            node.material.dispose()
+          }
+        }
+      })
+    }
+
+    if (!isPairActive || !viewSettings.showContactZone) return
+
+    const isRack = gear1Params.gearType === 'rack'
+    const z1 = gear1Params.teeth
+    const z2 = isRack ? (gear1Params.rackPinionTeeth || 20) : gear2Params.teeth
+    const m = gear1Params.module
+    const alphaRad = ((gear1Params.pressureAngle || 20) * Math.PI) / 180
+    const effBeta = (gear1Params.gearType === 'helical' || gear1Params.gearType === 'herringbone') && gear1Params.helixAngle ? gear1Params.helixAngle : 0
+    const betaRad = (effBeta * Math.PI) / 180
+    const mt = betaRad !== 0 ? m / Math.cos(betaRad) : m
+    const alphaT = betaRad !== 0 ? Math.atan(Math.tan(alphaRad) / Math.cos(betaRad)) : alphaRad
+
+    const fw = gear1Params.faceWidth || 20
+    const zLevel = (fw / 2) + 0.8
+
+    const createCircleLine = (radius: number, color: number, center: [number, number, number]) => {
+      const segments = 64
+      const points: THREE.Vector3[] = []
+      for (let i = 0; i <= segments; i++) {
+        const theta = (i / segments) * Math.PI * 2
+        points.push(new THREE.Vector3(center[0] + radius * Math.cos(theta), center[1] + radius * Math.sin(theta), center[2]))
+      }
+      const geom = new THREE.BufferGeometry().setFromPoints(points)
+      const mat = new THREE.LineDashedMaterial({
+        color,
+        dashSize: 3,
+        gapSize: 2,
+        linewidth: 2,
+      })
+      const line = new THREE.Line(geom, mat)
+      line.computeLineDistances()
+      return line
+    }
+
+    if (isRack) {
+      const rp = (mt * z2) / 2
+      const operatingY = dims.pinionOperatingY || rp
+      const rLen = gear1Params.rackLength || 160
+
+      // Línea primitiva de la cremallera (Y = 0)
+      const rackLineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-rLen / 2, 0, zLevel),
+        new THREE.Vector3(rLen / 2, 0, zLevel),
+      ])
+      const rackLineMat = new THREE.LineDashedMaterial({ color: 0x10b981, dashSize: 4, gapSize: 2 })
+      const rackLine = new THREE.Line(rackLineGeom, rackLineMat)
+      rackLine.computeLineDistances()
+      contactGroup.add(rackLine)
+
+      // Circunferencia primitiva del piñón
+      const pinionCircle = createCircleLine(rp, 0x10b981, [0, operatingY, zLevel])
+      contactGroup.add(pinionCircle)
+
+      // Punto de rodadura pura P
+      const ptGeom = new THREE.SphereGeometry(1.5, 16, 16)
+      const ptMat = new THREE.MeshBasicMaterial({ color: 0x10b981 })
+      const ptMesh = new THREE.Mesh(ptGeom, ptMat)
+      ptMesh.position.set(0, 0, zLevel)
+      contactGroup.add(ptMesh)
+
+      const ringGeom = new THREE.RingGeometry(2.0, 2.7, 32)
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.75, side: THREE.DoubleSide })
+      const ringMesh = new THREE.Mesh(ringGeom, ringMat)
+      ringMesh.position.set(0, 0, zLevel)
+      contactGroup.add(ringMesh)
+
+      // Línea de acción de contacto
+      const gLen = (dims.contactRatio || 1.4) * (Math.PI * mt * Math.cos(alphaT))
+      const halfG = Math.max(4, gLen / 2)
+      const dirX = Math.sin(alphaT)
+      const dirY = Math.cos(alphaT)
+      const actionGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-dirX * halfG, -dirY * halfG, zLevel),
+        new THREE.Vector3(dirX * halfG, dirY * halfG, zLevel),
+      ])
+      const actionMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 3 })
+      const actionLine = new THREE.Line(actionGeom, actionMat)
+      contactGroup.add(actionLine)
+    } else {
+      const isInternal = gear1Params.gearType === 'internal'
+      const rp1 = (mt * z1) / 2
+      const rp2 = (mt * z2) / 2
+      const centerDist = isInternal ? Math.abs(rp1 - rp2) : rp1 + rp2
+
+      // Circunferencias primitivas de ambos engranajes
+      const circle1 = createCircleLine(rp1, 0x10b981, [0, 0, zLevel])
+      contactGroup.add(circle1)
+
+      const circle2 = createCircleLine(rp2, 0x3b82f6, [centerDist, 0, zLevel])
+      contactGroup.add(circle2)
+
+      // Punto de contacto tangencial P (rp1, 0, zLevel)
+      const ptGeom = new THREE.SphereGeometry(1.5, 16, 16)
+      const ptMat = new THREE.MeshBasicMaterial({ color: 0x10b981 })
+      const ptMesh = new THREE.Mesh(ptGeom, ptMat)
+      ptMesh.position.set(rp1, 0, zLevel)
+      contactGroup.add(ptMesh)
+
+      const ringGeom = new THREE.RingGeometry(2.0, 2.7, 32)
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.75, side: THREE.DoubleSide })
+      const ringMesh = new THREE.Mesh(ringGeom, ringMat)
+      ringMesh.position.set(rp1, 0, zLevel)
+      contactGroup.add(ringMesh)
+
+      // Línea de engrane / trayectoria de contacto A-B
+      const gLen = (dims.contactRatio || 1.4) * (Math.PI * mt * Math.cos(alphaT))
+      const halfG = Math.max(5, gLen / 2)
+      const dirX = Math.sin(alphaT)
+      const dirY = Math.cos(alphaT)
+      const actionGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(rp1 - dirX * halfG, -dirY * halfG, zLevel),
+        new THREE.Vector3(rp1 + dirX * halfG, dirY * halfG, zLevel),
+      ])
+      const actionMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 3 })
+      const actionLine = new THREE.Line(actionGeom, actionMat)
+      contactGroup.add(actionLine)
+    }
+  }, [isPairActive, viewSettings.showContactZone, gear1Params, gear2Params, dims])
+
   // Helper para acotar distancias de cámara acordes al tamaño físico del engranaje
   const getCameraDistances = () => {
     const isPair = gear1Params.gearType === 'rack'
@@ -746,6 +893,21 @@ export const Viewport3D: React.FC = () => {
         >
           3D Dims
         </button>
+
+        {isPairActive && (
+          <button
+            onClick={() => setViewSetting('showContactZone', !viewSettings.showContactZone)}
+            className={`px-2.5 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
+              viewSettings.showContactZone
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Toggle Kinematic Contact Zone, Pitch Circles & Line of Action"
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${viewSettings.showContactZone ? 'bg-emerald-200 animate-pulse' : 'bg-slate-400'}`} />
+            Mesh Zone
+          </button>
+        )}
 
         <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
 

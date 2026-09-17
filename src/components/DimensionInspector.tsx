@@ -4,15 +4,28 @@ import { calculateDimensions } from '../cad/gearMath'
 
 export const DimensionInspector: React.FC = () => {
   const params = useGearStore((s) => s.params)
+  const gear1Params = useGearStore((s) => s.gear1Params)
+  const gear2Params = useGearStore((s) => s.gear2Params)
+  const gear2Enabled = useGearStore((s) => s.gear2Enabled)
+  const selectedGear = useGearStore((s) => s.selectedGear)
   const meshingPair = useGearStore((s) => s.meshingPair)
-  const dims = calculateDimensions(params, meshingPair.enabled ? meshingPair.teeth2 : undefined)
+
+  const isRack = gear1Params.gearType === 'rack'
+  const isPairActive = isRack ? (gear1Params.rackIncludePinion !== false) : gear2Enabled
+  const matingTeeth = isRack
+    ? (gear1Params.rackPinionTeeth || 20)
+    : isPairActive
+    ? (selectedGear === 1 ? gear2Params.teeth : gear1Params.teeth)
+    : undefined
+
+  const dims = calculateDimensions(params, matingTeeth)
 
   return (
     <div className="bg-white border-t border-slate-200 px-5 py-2.5 text-xs shrink-0 select-none">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-slate-700 font-bold uppercase tracking-wider text-[10px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="text-slate-700 font-bold uppercase tracking-wider text-[10px] flex items-center gap-2">
           <span>
-            Metrology & Calculated Dimensions · Profile:{' '}
+            Metrology ·{' '}
             <span className="text-orange-600">
               {params.toothProfileType === 'stub'
                 ? 'Stub Tooth (AGMA)'
@@ -23,30 +36,124 @@ export const DimensionInspector: React.FC = () => {
                 : 'ISO 53 Standard'}
             </span>
             {params.gearType === 'rack' && (
-              <span className="ml-2 text-slate-400">
-                · Mechanism:{' '}
-                <span className="text-slate-700 font-bold">
-                  {params.rackToothType === 'herringbone'
-                    ? 'Herringbone (Chevron) Rack & Pinion'
-                    : params.rackToothType === 'helical'
-                    ? 'Helical Rack & Pinion'
-                    : 'Spur Rack & Pinion'}
-                </span>
+              <span className="ml-1 text-slate-400 font-normal">
+                · Mechanism: <span className="text-slate-700 font-bold">{params.rackToothType || 'Spur'}</span>
               </span>
             )}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 font-medium">
-          {params.gearType === 'rack' && dims.pinionUndercutWarning ? (
-            <span className="text-amber-600 font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Pinion undercut risk (zp={params.rackPinionTeeth || 20} &lt; {dims.undercutLimitZ})
-            </span>
-          ) : (
-            <span>
-              {dims.axialThrustRatio === 0 ? 'Zero axial thrust (Fa = 0)' : 'Progressive helical meshing'}
+
+        {/* Diagnostic Badges & Health Indicators */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+          {/* Contact Ratio Indicator */}
+          {dims.contactRatio != null && (
+            <span
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold border ${
+                dims.contactRatioStatus === 'optimal'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : dims.contactRatioStatus === 'acceptable'
+                  ? 'bg-teal-50 text-teal-800 border-teal-200'
+                  : dims.contactRatioStatus === 'marginal'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse'
+              }`}
+              title={`Contact Ratio ε_α = ${dims.contactRatio}. ${
+                dims.contactRatioStatus === 'optimal'
+                  ? 'Smooth, continuous tooth handover (ε_α ≥ 1.4).'
+                  : dims.contactRatioStatus === 'acceptable'
+                  ? 'Acceptable industrial meshing (1.2 ≤ ε_α < 1.4).'
+                  : dims.contactRatioStatus === 'marginal'
+                  ? 'Marginal: risk of tooth impact noise.'
+                  : 'Critical: contact interrupted between teeth!'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  dims.contactRatioStatus === 'optimal' || dims.contactRatioStatus === 'acceptable'
+                    ? 'bg-emerald-500'
+                    : dims.contactRatioStatus === 'marginal'
+                    ? 'bg-amber-500'
+                    : 'bg-rose-500'
+                }`}
+              />
+              ε_α: {dims.contactRatio}
+              {dims.totalContactRatio != null && ` (ε_γ: ${dims.totalContactRatio})`} · {dims.contactRatioStatus}
             </span>
           )}
+
+          {/* Top Land Thickness Indicator */}
+          <span
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold border ${
+              dims.topLandStatus === 'safe'
+                ? 'bg-slate-50 text-slate-700 border-slate-200'
+                : dims.topLandStatus === 'warning'
+                ? 'bg-amber-50 text-amber-800 border-amber-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200 animate-pulse'
+            }`}
+            title={`Top Land Thickness s_a = ${dims.topLandThickness} mm. Recommended minimum: 0.25*m = ${dims.minRecommendedTopLand} mm.`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                dims.topLandStatus === 'safe'
+                  ? 'bg-emerald-500'
+                  : dims.topLandStatus === 'warning'
+                  ? 'bg-amber-500'
+                  : 'bg-rose-500'
+              }`}
+            />
+            s_a: {dims.topLandThickness} mm {dims.topLandStatus === 'safe' ? '(Crest Safe)' : '(Pointed Tip Risk)'}
+          </span>
+
+          {/* Hunting Tooth Uniform Wear Indicator */}
+          {dims.huntingToothStatus && (
+            <span
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold border ${
+                dims.huntingToothStatus === 'optimal'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200'
+              }`}
+              title={
+                dims.huntingToothStatus === 'optimal'
+                  ? 'Hunting Tooth Active: gcd(z1, z2) = 1. Every tooth contacts all mating teeth for perfectly uniform wear.'
+                  : `Cyclic Repeat: gcd(z1, z2) = ${dims.gcdTeeth}. Local imperfections repeat every ${Math.round((params.teeth || 20) / (dims.gcdTeeth || 1))} cycles.`
+              }
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  dims.huntingToothStatus === 'optimal' ? 'bg-emerald-500' : 'bg-slate-400'
+                }`}
+              />
+              {dims.huntingToothStatus === 'optimal' ? 'Uniform Wear (gcd=1)' : `Repeat Cycle (gcd=${dims.gcdTeeth})`}
+            </span>
+          )}
+
+          {/* Internal Gear Trochoidal Interference Warning */}
+          {dims.internalInterferenceWarning && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Internal tip interference (Δz &lt; 8)
+            </span>
+          )}
+
+          {/* Undercut Alert */}
+          {dims.hasUndercutWarning && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-800 border border-amber-200 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Root undercut (z &lt; {dims.undercutLimitZ})
+            </span>
+          )}
+
+          {params.gearType === 'rack' && dims.pinionUndercutWarning && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-800 border border-amber-200 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Pinion undercut (zp &lt; {dims.undercutLimitZ})
+            </span>
+          )}
+
+          {/* Axial Thrust */}
+          <span className="text-slate-400 font-normal ml-1">
+            {dims.axialThrustRatio === 0 ? '· Fa = 0' : `· Fa: ${(dims.axialThrustRatio * 100).toFixed(0)}%`}
+          </span>
         </div>
       </div>
 

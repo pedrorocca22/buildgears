@@ -297,4 +297,94 @@ describe('Dual Gear Conjugate System & Motorization', () => {
     expect(state.gear1Params.rackLength).toBe(240)
     expect(state.gear1Params.rackHeight).toBe(35)
   })
+
+  it('calculates contact ratio and evaluates mesh handover status', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGear2Enabled(true)
+
+    // Standard Spur pair: z1 = 26, z2 = 17, m = 2.5, alpha = 20 deg
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+
+    // Contact ratio must be > 1.4 for a standard 26/17 pair (typically around 1.6 - 1.7)
+    expect(dims.contactRatio).toBeGreaterThanOrEqual(1.4)
+    expect(dims.contactRatioStatus).toBe('optimal')
+
+    // Helical pair adds overlap ratio (eps_beta > 0, eps_gamma > eps_alpha)
+    store.setGearType('helical')
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    expect(dims.overlapRatio).toBeGreaterThan(0)
+    expect(dims.totalContactRatio).toBeGreaterThan(dims.contactRatio!)
+
+    // Rack and pinion contact ratio
+    store.setGearType('rack')
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params, state.gear1Params.rackPinionTeeth)
+    expect(dims.contactRatio).toBeGreaterThan(1.2)
+    expect(dims.contactRatioStatus).toBe('optimal')
+  })
+
+  it('computes top land thickness (s_a) and warns against pointed crests on excess profile shift', () => {
+    const store = useGearStore.getState()
+    store.selectGear(1)
+    store.setGearType('spur')
+
+    // Standard shift x = 0.0 -> crest is safe (sa >= 0.25 * m)
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params)
+    expect(dims.topLandThickness).toBeGreaterThan(dims.minRecommendedTopLand)
+    expect(dims.topLandStatus).toBe('safe')
+
+    // Extreme positive shift x = +0.8 with small teeth z = 12 -> crest becomes pointed
+    store.setGearParam('teeth', 12)
+    store.setGearParam('profileShift', 0.8)
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params)
+    expect(dims.topLandThickness).toBeLessThan(dims.minRecommendedTopLand)
+    expect(['warning', 'critical']).toContain(dims.topLandStatus)
+  })
+
+  it('detects trochoidal tip interference in internal ring gears with delta z < 8', () => {
+    const store = useGearStore.getState()
+    store.setGearType('internal')
+    store.setGear2Enabled(true)
+
+    // Safe difference: z1 = 30, z2 = 14 (delta z = 16 >= 8)
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    expect(dims.internalInterferenceWarning).toBe(false)
+
+    // Dangerous difference: z1 = 20, z2 = 16 (delta z = 4 < 8)
+    store.selectGear(1)
+    store.setGearParam('teeth', 20)
+    store.selectGear(2)
+    store.setGearParam('teeth', 16)
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    expect(dims.internalInterferenceWarning).toBe(true)
+  })
+
+  it('evaluates hunting tooth frequency for uniform wear distribution (gcd)', () => {
+    const store = useGearStore.getState()
+    store.setGearType('spur')
+    store.setGear2Enabled(true)
+
+    // Coprime pair: z1 = 26, z2 = 17 -> gcd = 1 -> optimal uniform wear
+    let state = useGearStore.getState()
+    let dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    expect(dims.gcdTeeth).toBe(1)
+    expect(dims.huntingToothStatus).toBe('optimal')
+
+    // Non-coprime pair: z1 = 24, z2 = 16 -> gcd = 8 -> cyclic repeat wear
+    store.selectGear(1)
+    store.setGearParam('teeth', 24)
+    store.selectGear(2)
+    store.setGearParam('teeth', 16)
+    state = useGearStore.getState()
+    dims = calculateDimensions(state.gear1Params, state.gear2Params.teeth)
+    expect(dims.gcdTeeth).toBe(8)
+    expect(dims.huntingToothStatus).toBe('cyclic')
+  })
 })
