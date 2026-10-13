@@ -26,7 +26,7 @@ export function calculateDimensions(
   params: GearParameters,
   mating?: number | Partial<GearParameters>
 ): CalculatedDimensions {
-  if (!isInternalGear(params.gearType) && typeof mating === 'object' && mating.gearType === 'internal_herringbone') {
+  if (!isInternalGear(params.gearType) && typeof mating === 'object' && isInternalGear(mating.gearType) && isHelicalGear(mating.gearType)) {
     const own = calculateDimensions(params)
     const pair = calculateDimensions({ ...params, ...mating }, params)
     return {
@@ -109,7 +109,7 @@ export function calculateDimensions(
   const ha = (haCoeff + x) * mn
   const hf = (hfCoeff - x) * mn
 
-  const internalChevron = gearType === 'internal_herringbone'
+  const internalChevron = isInternalGear(gearType) && isHelicalGear(gearType)
   const ra = internalChevron ? Math.max(0.5, rp - (haCoeff - x) * mn) : rp + ha
   const da = ra * 2
   const rf = internalChevron ? rp + (hfCoeff + x) * mn : Math.max(0.5, rp - hf)
@@ -452,7 +452,7 @@ export function generateInvoluteProfile(
   params: GearParameters,
   pointsPerFlank = 10
 ): [number, number][] {
-  if (params.gearType === 'internal_herringbone') return generateInternalCavityProfile(params, pointsPerFlank)
+  if (isInternalGear(params.gearType) && isHelicalGear(params.gearType)) return generateInternalCavityProfile(params, pointsPerFlank)
   const {
     module: mn,
     teeth: z,

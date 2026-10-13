@@ -18,6 +18,7 @@ export const RightSidebar: React.FC = () => {
   const motorRpm = useGearStore((s) => s.motorRpm)
   const setMotorRpm = useGearStore((s) => s.setMotorRpm)
   const setGearParam = useGearStore((s) => s.setGearParam)
+  const setInternalToothType = useGearStore((s) => s.setInternalToothType)
   const setGearParams = useGearStore((s) => s.setGearParams)
   const resetCurrentGear = useGearStore((s) => s.resetCurrentGear)
   const autoCompensateProfileShift = useGearStore((s) => s.autoCompensateProfileShift)
@@ -66,7 +67,8 @@ export const RightSidebar: React.FC = () => {
     helical: 'Helical Gear',
     herringbone: 'Herringbone Gear',
     internal: 'Internal Ring Gear',
-    internal_herringbone: 'Internal Herringbone',
+    internal_helical: 'Internal Ring - Helical',
+    internal_herringbone: 'Internal Ring - Herringbone',
     rack: rackToothTitle,
     bevel: 'Bevel Gear',
   }
@@ -236,7 +238,7 @@ export const RightSidebar: React.FC = () => {
                         onClick={() => autoCompensateProfileShift()}
                         className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors flex items-center justify-center gap-1"
                       >
-                        <span>⚡ {gear1Params.gearType === 'internal_herringbone' ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}</span>
+                        <span>⚡ {(isInternal && isHelicalGear(gear1Params.gearType)) ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}</span>
                       </button>
                     </div>
                   )}
@@ -480,6 +482,22 @@ export const RightSidebar: React.FC = () => {
             </div>
           )}
 
+          {isInternal && (
+            <div>
+              <label htmlFor="internal-tooth-type" className="block text-[11px] font-medium text-slate-700 mb-1.5">Internal Ring Tooth Type</label>
+              <select
+                id="internal-tooth-type"
+                value={gear1Params.gearType === 'internal_herringbone' ? 'herringbone' : gear1Params.gearType === 'internal_helical' ? 'helical' : 'spur'}
+                onChange={(event) => setInternalToothType(event.target.value as 'spur' | 'helical' | 'herringbone')}
+                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-700 focus-visible:outline-2 focus-visible:outline-orange-500"
+              >
+                <option value="spur">Spur - Straight teeth</option>
+                <option value="helical">Helical - Single helix</option>
+                <option value="herringbone">Herringbone - Double helix</option>
+              </select>
+            </div>
+          )}
+
           {/* Tooth Profile Standard Selector */}
           <div>
             <div className="flex justify-between items-center mb-1.5">
@@ -502,7 +520,7 @@ export const RightSidebar: React.FC = () => {
                 { id: 'stub', label: 'Stub' },
                 { id: 'deep', label: 'Deep HCR' },
                 { id: 'cycloidal', label: 'Cycloidal' },
-              ].filter((tp) => gear1Params.gearType !== 'internal_herringbone' || tp.id !== 'cycloidal').map((tp) => (
+              ].filter((tp) => !(isInternal && isHelicalGear(gear1Params.gearType)) || tp.id !== 'cycloidal').map((tp) => (
                 <button
                   key={tp.id}
                   type="button"
@@ -603,7 +621,7 @@ export const RightSidebar: React.FC = () => {
                   <span className="font-bold text-emerald-600 text-[9px] uppercase tracking-wide">Self-Centering V-Chevron</span>
                 </div>
               )}
-              {(!isHerringbone || gear1Params.gearType === 'internal_herringbone') && (
+              {(!isHerringbone || (isInternal && isHelicalGear(gear1Params.gearType))) && (
                 <div className="space-y-1">
                   <span className="text-[10px] text-slate-500">{isRack ? 'Rack helix hand:' : 'Helix hand:'}</span>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -630,7 +648,7 @@ export const RightSidebar: React.FC = () => {
                       Left Hand (LH)
                     </button>
                   </div>
-                  {(isRack || gear1Params.gearType === 'internal_herringbone') && (
+                  {(isRack || (isInternal && isHelicalGear(gear1Params.gearType))) && (
                     <p className="text-[9.5px] text-slate-400 leading-tight pt-1">
                       * Pinion automatically adopts matching helix hand ({params.helixHand === 'right' ? 'RH' : 'LH'}) for parallel conjugate contact.
                     </p>
@@ -735,7 +753,7 @@ export const RightSidebar: React.FC = () => {
                       onClick={() => autoCompensateProfileShift()}
                       className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors"
                     >
-                      {gear1Params.gearType === 'internal_herringbone' ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}
+                      {(isInternal && isHelicalGear(gear1Params.gearType)) ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}
                     </button>
                   </div>
                 )}

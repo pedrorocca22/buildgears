@@ -1,17 +1,17 @@
 import React from 'react'
 import { useGearStore } from '../store/useGearStore'
-import type { GearType } from '../cad/types'
+import { isInternalGear, type GearType } from '../cad/types'
 
 export const LeftSidebar: React.FC = () => {
   const currentType = useGearStore((s) => s.gear1Params.gearType)
+  const lastInternalType = useGearStore((s) => s.lastInternalType)
   const setGearType = useGearStore((s) => s.setGearType)
 
   const catalogItems: { id: GearType; label: string; desc: string }[] = [
     { id: 'spur', label: 'Spur Gear', desc: 'Straight teeth parallel to shaft axis' },
     { id: 'helical', label: 'Helical Gear', desc: 'Gradual contact, smooth & quiet' },
     { id: 'herringbone', label: 'Herringbone', desc: 'Double helical, zero axial thrust' },
-    { id: 'internal_herringbone', label: 'Internal Herringbone', desc: 'Double-helical ring with an internal pinion' },
-    { id: 'internal', label: 'Internal Ring', desc: 'Annular internal teeth for epicyclic gears' },
+    { id: 'internal', label: 'Internal Ring', desc: 'Spur, helical or herringbone internal teeth' },
     { id: 'rack', label: 'Rack & Pinion', desc: 'Linear to rotary kinematic conversion' },
     { id: 'bevel', label: 'Straight Bevel', desc: 'Intersecting shaft angular transmission' },
   ]
@@ -32,11 +32,11 @@ export const LeftSidebar: React.FC = () => {
           Gear Types
         </div>
         {catalogItems.map((item) => {
-          const isActive = currentType === item.id
+          const isActive = currentType === item.id || (item.id === 'internal' && isInternalGear(currentType))
           return (
             <button
               key={item.id}
-              onClick={() => setGearType(item.id)}
+              onClick={() => setGearType(item.id === 'internal' ? lastInternalType : item.id)}
               aria-pressed={isActive}
               className={`w-full text-left p-2.5 rounded-xl border cursor-pointer focus-visible:outline-2 focus-visible:outline-orange-500 focus-visible:outline-offset-2 transition-all flex flex-col gap-0.5 ${
                 isActive

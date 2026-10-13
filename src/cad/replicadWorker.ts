@@ -354,7 +354,7 @@ function buildRackSolid(gearParams: GearParameters): any {
 function buildInternalGearSolid(gearParams: GearParameters) {
   const dims = calculateDimensions(gearParams)
   const { faceWidth } = gearParams
-  const contour = generateInvoluteProfile(gearParams, isHerringboneGear(gearParams.gearType) ? 3 : 8)
+  const contour = generateInvoluteProfile(gearParams, isHelicalGear(gearParams.gearType) ? 3 : 8)
   let pen = draw(contour[0])
   for (let i = 1; i < contour.length; i++) {
     pen = pen.lineTo(contour[i])
@@ -371,7 +371,9 @@ function buildInternalGearSolid(gearParams: GearParameters) {
     const top = ring.cut(cavity)
     solid = makeCompound([top, top.clone(true).mirror('XY')]).translate([0, 0, halfB])
   } else {
-    const teethSolid = drawing.sketchOnPlane('XY').extrude(faceWidth)
+    const teethSolid = gearParams.gearType === 'internal_helical'
+      ? drawing.sketchOnPlane('XY').extrude(faceWidth, { twistAngle: dims.twistAngleDeg })
+      : drawing.sketchOnPlane('XY').extrude(faceWidth)
     const ring: any = drawCircle(outerR).sketchOnPlane('XY').extrude(faceWidth)
     solid = ring.cut(teethSolid)
   }

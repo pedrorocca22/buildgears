@@ -200,6 +200,9 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
       const divisions = Math.max(12, Math.ceil(Math.abs(halfTwist) / 1.5))
       const top = cs.extrude(faceWidth / 2, divisions, halfTwist, [1, 1], false)
       teethVoid = top.add(top.mirror([0, 0, 1]))
+    } else if (gearType === 'internal_helical') {
+      const twist = dims.twistAngleDeg
+      teethVoid = cs.extrude(faceWidth, Math.max(16, Math.ceil(Math.abs(twist) / 1.5)), twist, [1, 1], true).rotate([0, 0, -twist / 2])
     } else {
       teethVoid = cs.extrude(faceWidth + 2, 0, 0, [1, 1], true)
     }

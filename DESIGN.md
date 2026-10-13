@@ -55,7 +55,8 @@ Reuse rounded-lg controls and rounded-xl panels. Avoid adding a competing shape 
 Select/Listbox ownership is native: BacklashPanel uses the browser select for its existing adjustment choices. src/index.css owns the global standards-based scrollbar theme with WebKit fallbacks and system colors in forced-colors mode.
 
 Catalog entries are native buttons with selected, hover and keyboard focus states. Gear parameters use existing native sliders and buttons. Zustand owns per-type sessions, selection and conjugation; switching catalog types restores each saved session.
-Internal Herringbone exposes the existing angle, hand and ring-diameter controls. Its mate is an external herringbone pinion placed inside the ring. Both share angle, hand and face width while keeping independent teeth, bores and hubs.
+Internal Ring is a single catalog entry with a native tooth-type select (Spur, Helical, Herringbone) in RightSidebar. Changing teeth preserves the current ring and pinion dimensions, selection and pair visibility. The catalog restores the last internal variant.
+Internal helical and herringbone variants expose the existing angle, hand and ring-diameter controls. Its mate is an external herringbone pinion placed inside the ring. Both share angle, hand and face width while keeping independent teeth, bores and hubs.
 The viewport and export service must use the same complete configurations. STEP errors and progress continue through the existing ExportModal state.
 Icons use the installed Lucide family. Existing camera and motor controls retain their semantics.
 

@@ -37,7 +37,8 @@ export const ExportModal: React.FC = () => {
     helical: 'Helical Gear',
     herringbone: 'Herringbone Gear',
     internal: 'Internal Ring Gear',
-    internal_herringbone: 'Internal Herringbone',
+    internal_helical: 'Internal Ring - Helical',
+    internal_herringbone: 'Internal Ring - Herringbone',
     rack: 'Rack',
     bevel: 'Straight Bevel',
   }

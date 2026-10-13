@@ -122,3 +122,60 @@ describe('internal herringbone ring and pinion', () => {
     collision.delete(); positioned.delete(); solid1.delete(); solid2.delete()
   })
 })
+
+
+describe('unified internal ring tooth selector', () => {
+  it('preserves the ring, pinion, selection and pair visibility across all tooth types', () => {
+    const store = useGearStore.getState()
+    store.setGearType('internal')
+    store.setGearParam('teeth', 48)
+    store.setGearParam('outerRingDiameter', 170)
+    store.setGear2Enabled(true)
+    store.selectGear(2)
+    store.setGearParam('teeth', 24)
+    store.setGearParam('boreDiameter', 9)
+    for (const toothType of ['helical', 'herringbone', 'spur'] as const) {
+      store.setInternalToothType(toothType)
+      const state = useGearStore.getState()
+      expect(state.gear2Params.gearType).toBe(toothType)
+      expect(state.gear1Params.teeth).toBe(48)
+      expect(state.gear1Params.outerRingDiameter).toBe(170)
+      expect(state.gear2Params.boreDiameter).toBe(9)
+      expect(state.gear2Params.teeth).toBe(24)
+      expect(state.selectedGear).toBe(2)
+      expect(state.gear2Enabled).toBe(true)
+      expect(state.params).toBe(state.gear2Params)
+      expect(state.gear2Params.helixHand).toBe(state.gear1Params.helixHand)
+      expect(state.gear2Params.helixAngle).toBe(state.gear1Params.helixAngle)
+    }
+    store.setInternalToothType('helical')
+    store.setGearType('spur')
+    store.setGearType(useGearStore.getState().lastInternalType)
+    expect(useGearStore.getState().gear1Params.gearType).toBe('internal_helical')
+    expect(useGearStore.getState().gear2Params.boreDiameter).toBe(9)
+    store.resetCurrentGear()
+    expect(useGearStore.getState().gear2Params.helixAngle).toBe(useGearStore.getState().gear1Params.helixAngle)
+  })
+
+  it.each(['right', 'left'] as const)('builds a valid %s-hand helical ring with a conjugate pinion', async (hand) => {
+    const { gear1Params: ring, gear2Params: pinion } = createDefaultSessionConfig('internal_helical')
+    ring.helixHand = pinion.helixHand = hand
+    const dims = calculateDimensions(ring, pinion)
+    expect(dims.tipRadius).toBeLessThan(dims.pitchRadius)
+    expect(dims.rootRadius).toBeGreaterThan(dims.pitchRadius)
+    expect(dims.axialThrustRatio).toBeGreaterThan(0)
+    const solid1 = await buildGearManifold(ring)
+    const solid2 = await buildGearManifold(pinion)
+    expect(solid1.status()).toBe('NoError')
+    expect(solid1.volume()).toBeGreaterThan(0)
+    for (const angle of [0, 2, 5]) {
+      const rotatingRing = solid1.rotate([0, 0, angle])
+      const positioned = solid2.rotate([0, 0, angle * ring.teeth / pinion.teeth])
+        .translate([getAssemblyLayout(ring, pinion).centerDistance, 0, 0])
+      const collision = rotatingRing.intersect(positioned)
+      expect(collision.volume()).toBeLessThan(solid2.volume() * 0.001)
+      collision.delete(); positioned.delete(); rotatingRing.delete()
+    }
+    solid1.delete(); solid2.delete()
+  })
+})

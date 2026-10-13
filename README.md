@@ -46,8 +46,7 @@
 | **Helical Gears** (*Helicoidal*) | Smooth helical tooth extrusion with customizable helix angle ($\beta$) and hand. | Helix Angle ($\beta$), Hand (Left/Right), Normal Module ($m_n$) |
 | **Herringbone** (*Doble Hélice*) | Bi-directional chevron profile eliminating axial thrust forces. | Helix Angle ($\beta$), Central Groove Width |
 | **Rack & Pinion** (*Piñón y Cremallera*) | Prismatic rack with DIN 912 mounting holes & kinematically coupled pinion. | Rack Length, Mounting Hole Count & Diameter, Module |
-| **Internal Herringbone** (*Corona Interior de Doble Hélice*) | Inward-facing chevron teeth with a matching herringbone pinion inside the ring. | Helix Angle, Hand, Ring Outer Diameter, Independent Teeth and Bores |
-| **Internal Gears** (*Corona Interior*) | Annular ring gears with internal involute teeth for planetary sets. | Ring Outer Diameter, Rim Thickness, Teeth ($z$) |
+| **Internal Ring** (*Corona Interior*) | One mode with Spur, Helical and Herringbone tooth options and a matching internal pinion. | Tooth Type, Helix Angle, Hand, Ring Outer Diameter, Teeth ($z$) |
 | **Bevel Gears** (*Cónico Recto*) | Conical pitch surface transmission for intersecting shafts (e.g. 90°). | Pitch Cone Angle, Cone Distance, Module ($m$) |
 
 ---

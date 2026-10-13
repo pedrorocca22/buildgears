@@ -2,6 +2,7 @@ export type GearType =
   | 'spur'           // Cilíndrico recto
   | 'helical'        // Cilíndrico helicoidal
   | 'herringbone'    // Doble hélice / Espiga
+  | 'internal_helical' // Internal single helix
   | 'internal_herringbone' // Corona interior de doble hélice
   | 'internal'       // Corona interior
   | 'rack'           // Cremallera
@@ -180,7 +181,7 @@ export interface ExportStatus {
 
 
 export function isInternalGear(type: GearType | undefined): boolean {
-  return type === 'internal' || type === 'internal_herringbone'
+  return type === 'internal' || type === 'internal_helical' || type === 'internal_herringbone'
 }
 
 export function isHerringboneGear(type: GearType | undefined): boolean {
@@ -188,9 +189,9 @@ export function isHerringboneGear(type: GearType | undefined): boolean {
 }
 
 export function isHelicalGear(type: GearType | undefined): boolean {
-  return type === 'helical' || isHerringboneGear(type)
+  return type === 'helical' || type === 'internal_helical' || isHerringboneGear(type)
 }
 
 export function internalPinionType(type: GearType): GearType {
-  return type === 'internal_herringbone' ? 'herringbone' : 'spur'
+  return type === 'internal_herringbone' ? 'herringbone' : type === 'internal_helical' ? 'helical' : 'spur'
 }

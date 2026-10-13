@@ -26,9 +26,9 @@ async function exportQuality(params: GearParameters, gear2Params?: GearParameter
   return ready.quality
 }
 describe('real OpenCASCADE assembly geometry', () => {
-  it.each(['spur', 'internal', 'internal_herringbone'] as const)('%s pair contains the same geometry as both separately exported parts', async (type) => {
+  it.each(['spur', 'internal', 'internal_helical', 'internal_herringbone'] as const)('%s pair contains the same geometry as both separately exported parts', async (type) => {
     const { gear1Params, gear2Params } = createDefaultSessionConfig(type)
-    if (type === 'internal_herringbone') {
+    if (type === 'internal_herringbone' || type === 'internal_helical') {
       gear1Params.teeth = 32
       gear2Params.teeth = 16
       gear1Params.faceWidth = gear2Params.faceWidth = 12

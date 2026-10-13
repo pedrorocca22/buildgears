@@ -1,4 +1,4 @@
-import { isInternalGear, isHelicalGear, isHerringboneGear, internalPinionType } from '../cad/types'
+import { isInternalGear, isHelicalGear, internalPinionType } from '../cad/types'
 import { create } from 'zustand'
 import type { GearParameters, MeshingPairParameters, ExportStatus, GearType } from '../cad/types'
 
@@ -34,6 +34,8 @@ interface GearStoreState {
   motorized: boolean
   motorRpm: number
 
+  lastInternalType: GearType
+  setInternalToothType: (type: 'spur' | 'helical' | 'herringbone') => void
   gearTypeConfigs: Record<GearType, GearTypeSessionConfig>
 
   meshingPair: MeshingPairParameters
@@ -222,13 +224,14 @@ export function createDefaultSessionConfig(type: GearType): GearTypeSessionConfi
       }
     }
 
+    case 'internal_helical':
     case 'internal_herringbone': {
       const base = createDefaultSessionConfig('internal')
       return {
         ...base,
-        gear1Params: { ...base.gear1Params, gearType: 'internal_herringbone', teeth: 48,
+        gear1Params: { ...base.gear1Params, gearType: type, teeth: 48,
           helixAngle: 25, faceWidth: 30, outerRingDiameter: 170 },
-        gear2Params: { ...base.gear2Params, gearType: 'herringbone', teeth: 24,
+        gear2Params: { ...base.gear2Params, gearType: internalPinionType(type), teeth: 24,
           helixAngle: 25, helixHand: base.gear1Params.helixHand, faceWidth: 30 },
       }
     }
@@ -367,6 +370,7 @@ export function createInitialGearTypeConfigs(): Record<GearType, GearTypeSession
     helical: createDefaultSessionConfig('helical'),
     herringbone: createDefaultSessionConfig('herringbone'),
     internal: createDefaultSessionConfig('internal'),
+    internal_helical: createDefaultSessionConfig('internal_helical'),
     internal_herringbone: createDefaultSessionConfig('internal_herringbone'),
     rack: createDefaultSessionConfig('rack'),
     bevel: createDefaultSessionConfig('bevel'),
@@ -393,7 +397,7 @@ function adaptConjugateParams(
       const gType = newValue as GearType
       if (isInternalGear(gType)) {
         adapted.gearType = internalPinionType(gType)
-        adapted.helixAngle = isHerringboneGear(gType) ? sender.helixAngle : 0
+        adapted.helixAngle = isHelicalGear(gType) ? sender.helixAngle : 0
         adapted.helixHand = sender.helixHand
         if (adapted.teeth >= sender.teeth) {
           adapted.teeth = Math.min(14, Math.max(8, Math.floor(sender.teeth * 0.5)))
@@ -470,6 +474,7 @@ function adaptConjugateParams(
 const initialConfigs = createInitialGearTypeConfigs()
 
 export const useGearStore = create<GearStoreState>((set) => ({
+  lastInternalType: 'internal',
   gearTypeConfigs: initialConfigs,
   params: initialConfigs.spur.gear1Params,
   gear1Params: initialConfigs.spur.gear1Params,
@@ -536,7 +541,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
       if (enabled && isInternalGear(state.gear1Params.gearType)) {
         nextG2.gearType = internalPinionType(state.gear1Params.gearType)
         nextG2.helixHand = state.gear1Params.helixHand
-        nextG2.helixAngle = isHerringboneGear(state.gear1Params.gearType) ? state.gear1Params.helixAngle : 0
+        nextG2.helixAngle = isHelicalGear(state.gear1Params.gearType) ? state.gear1Params.helixAngle : 0
         if (nextG2.teeth >= state.gear1Params.teeth) {
           nextG2.teeth = Math.min(14, Math.max(8, Math.floor(state.gear1Params.teeth * 0.5)))
         }
@@ -694,6 +699,29 @@ export const useGearStore = create<GearStoreState>((set) => ({
       }
     }),
 
+  setInternalToothType: (toothType) =>
+    set((state) => {
+      if (!isInternalGear(state.gear1Params.gearType)) return state
+      const type: GearType = toothType === 'spur' ? 'internal' : toothType === 'helical' ? 'internal_helical' : 'internal_herringbone'
+      if (type === state.gear1Params.gearType) return state
+      const helixAngle = toothType === 'spur' ? 0 : state.gear1Params.helixAngle || 20
+      const gear1Params = { ...state.gear1Params, gearType: type, helixAngle }
+      const gear2Params = { ...state.gear2Params, gearType: internalPinionType(type), helixAngle,
+        helixHand: gear1Params.helixHand, faceWidth: gear1Params.faceWidth }
+      if (toothType !== 'spur') {
+        for (const gear of [gear1Params, gear2Params]) {
+          if (gear.toothProfileType === 'cycloidal') {
+            gear.toothProfileType = 'standard'
+            gear.addendumCoeff = 1
+            gear.dedendumCoeff = 1.25
+          }
+        }
+      }
+      const config = { gear1Params, gear2Params, selectedGear: state.selectedGear, gear2Enabled: state.gear2Enabled }
+      return { ...config, params: state.selectedGear === 1 ? gear1Params : gear2Params,
+        lastInternalType: type, gearTypeConfigs: { ...state.gearTypeConfigs, [type]: config } }
+    }),
+
   setGearType: (type) =>
     set((state) => {
       const currentType = state.gear1Params.gearType
@@ -709,6 +737,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
       const targetConfig = state.gearTypeConfigs[type] || createDefaultSessionConfig(type)
 
       return {
+        ...(isInternalGear(type) ? { lastInternalType: type } : {}),
         gearTypeConfigs: {
           ...state.gearTypeConfigs,
           [currentType]: currentConfig,
@@ -839,7 +868,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
           resetG2.faceWidth = state.gear1Params.faceWidth
         } else if (isInternalGear(currentType)) {
           resetG2.gearType = internalPinionType(currentType)
-          resetG2.helixAngle = isHerringboneGear(currentType) ? state.gear1Params.helixAngle : 0
+          resetG2.helixAngle = isHelicalGear(currentType) ? state.gear1Params.helixAngle : 0
           resetG2.helixHand = state.gear1Params.helixHand
           resetG2.faceWidth = state.gear1Params.faceWidth
           if (resetG2.teeth >= state.gear1Params.teeth) {
@@ -871,6 +900,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
       const initial = createInitialGearTypeConfigs()
       return {
         gearTypeConfigs: initial,
+        lastInternalType: 'internal',
         gear1Params: initial.spur.gear1Params,
         gear2Params: initial.spur.gear2Params,
         selectedGear: 1,
@@ -1041,7 +1071,7 @@ export const useGearStore = create<GearStoreState>((set) => ({
   autoCompensateProfileShift: () =>
     set((state) => {
       if (!state.gear2Enabled || state.gear1Params.gearType === 'rack') return state
-      const targetShift = Number((state.gear1Params.profileShift * (state.gear1Params.gearType === 'internal_herringbone' ? 1 : -1)).toFixed(2))
+      const targetShift = Number((state.gear1Params.profileShift * (isInternalGear(state.gear1Params.gearType) && isHelicalGear(state.gear1Params.gearType) ? 1 : -1)).toFixed(2))
       const newG2 = { ...state.gear2Params, profileShift: targetShift }
       const currentType = state.gear1Params.gearType
       return {
