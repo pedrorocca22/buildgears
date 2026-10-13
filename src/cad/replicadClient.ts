@@ -1,4 +1,5 @@
 import type { GearParameters } from './types'
+import { getAssemblyLayout } from './exportParameters'
 
 let worker: Worker | null = null
 
@@ -52,9 +53,11 @@ export function resetWorker() {
 export function exportGearToSTEP(
   params: GearParameters,
   onProgress?: (progress: number, message: string) => void,
-  exportTarget: 'default' | 'rack' | 'pinion' | 'assembly' = 'default'
+  exportTarget: 'default' | 'rack' | 'pinion' | 'assembly' = 'default',
+  gear2Params?: GearParameters,
 ): Promise<StepExportResult> {
   return new Promise((resolve, reject) => {
+    if (exportTarget === 'assembly' && params.gearType !== 'rack') getAssemblyLayout(params, gear2Params)
     const w = getWorker()
 
     const handleMessage = (e: MessageEvent) => {
@@ -95,7 +98,7 @@ export function exportGearToSTEP(
       if (params.gearType === 'rack') {
         defaultName = `assembly_rack_pinion_m${params.module}_zp${params.rackPinionTeeth || 20}.step`
       } else {
-        defaultName = `assembly_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${params.rackPinionTeeth || 24}.step`
+        defaultName = `assembly_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${gear2Params!.teeth}.step`
       }
     } else if (params.gearType === 'rack') {
       if (exportTarget === 'pinion') {
@@ -108,6 +111,7 @@ export function exportGearToSTEP(
     w.postMessage({
       type: 'EXPORT_STEP',
       params,
+      gear2Params,
       exportTarget,
       fileName: defaultName,
     })

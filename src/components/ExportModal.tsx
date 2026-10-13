@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { runExport } from '../cad/exportService'
+import { resolveExportParameters } from '../cad/exportParameters'
 
 export const ExportModal: React.FC = () => {
   const params = useGearStore((s) => s.params)
@@ -36,6 +37,7 @@ export const ExportModal: React.FC = () => {
     helical: 'Helical Gear',
     herringbone: 'Herringbone Gear',
     internal: 'Internal Ring Gear',
+    internal_herringbone: 'Internal Herringbone',
     rack: 'Rack',
     bevel: 'Straight Bevel',
   }
@@ -60,7 +62,7 @@ export const ExportModal: React.FC = () => {
       })
 
       await runExport({
-        params,
+        ...resolveExportParameters(useGearStore.getState(), selectedTarget),
         format: selectedFormat,
         target: selectedTarget,
         onProgress: (progress, message) => {

@@ -1,3 +1,4 @@
+import { isInternalGear, isHelicalGear, isHerringboneGear } from './types'
 import OCModule from 'replicad-opencascadejs'
 import ocWasmUrl from 'replicad-opencascadejs/wasm?url'
 import { setOC, draw, drawCircle, drawRectangle, makeCompound, measureVolume, measureArea } from 'replicad'
@@ -5,6 +6,7 @@ import type { GearParameters } from './types'
 import { generateInvoluteProfile, generateRackProfile, calculateDimensions, getConjugatePinionParams } from './gearMath'
 import { getDIN6885Keyway } from './din6885'
 import { getDIN912Screw } from './din912'
+import { getAssemblyLayout } from './exportParameters'
 
 
 let ocLoaded = false
@@ -110,7 +112,7 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
   // Con 8 puntos por flanco se generan más de 550 caras helicoidales B-Spline que sobrecargan el solver en WASM (~5 min).
   // Reduciendo a 3 puntos por flanco, la desviación respecto a la evolvente ideal es < 0.008 mm (grado de precisión ISO 6),
   // pero el cálculo y las operaciones booleanas se aceleran entre 15x y 25x, exportando en pocos segundos.
-  const isTwisted = gearType === 'helical' || gearType === 'herringbone'
+  const isTwisted = isHelicalGear(gearType)
   const pointsPerFlank = isTwisted ? 3 : 4
   const contour = generateInvoluteProfile(gp, pointsPerFlank)
 
@@ -127,7 +129,7 @@ function buildCylindricalGearSolid(gp: GearParameters, opts?: BuildOptions): any
   } else if (gearType === 'helical') {
     const twist = dims.twistAngleDeg
     solid = sketch.extrude(faceWidth, { twistAngle: twist })
-  } else if (gearType === 'herringbone') {
+  } else if (isHerringboneGear(gearType)) {
     const halfTwist = dims.twistAngleDeg / 2
     const halfB = faceWidth / 2
     opts?.mark?.('hbExtrudeStart')
@@ -235,7 +237,7 @@ function buildRackSolid(gearParams: GearParameters): any {
     return pen.close().sketchOnPlane('XY')
   }
 
-  const isHerringboneRack = gearParams.rackToothType === 'herringbone'
+  const isHerringboneRack = isHerringboneGear(gearParams.rackToothType)
   const isHelicalRack = gearParams.rackToothType === 'helical' || (!gearParams.rackToothType && gearParams.helixAngle && gearParams.helixAngle > 0)
   const effectiveAngle = gearParams.helixAngle || 20
 
@@ -349,8 +351,58 @@ function buildRackSolid(gearParams: GearParameters): any {
   return solid
 }
 
+function buildInternalGearSolid(gearParams: GearParameters) {
+  const dims = calculateDimensions(gearParams)
+  const { faceWidth } = gearParams
+  const contour = generateInvoluteProfile(gearParams, isHerringboneGear(gearParams.gearType) ? 3 : 8)
+  let pen = draw(contour[0])
+  for (let i = 1; i < contour.length; i++) {
+    pen = pen.lineTo(contour[i])
+  }
+  const drawing = pen.close()
+
+  const outerR = Math.max(Math.max(dims.tipRadius, dims.rootRadius) + 12,
+    (gearParams.outerRingDiameter || 0) / 2 || Math.max(dims.tipRadius, dims.rootRadius) + 15)
+  let solid: any
+  if (isHerringboneGear(gearParams.gearType)) {
+    const halfB = faceWidth / 2
+    const cavity = drawing.sketchOnPlane('XY').extrude(halfB, { twistAngle: dims.twistAngleDeg / 2 })
+    const ring: any = drawCircle(outerR).sketchOnPlane('XY').extrude(halfB)
+    const top = ring.cut(cavity)
+    solid = makeCompound([top, top.clone(true).mirror('XY')]).translate([0, 0, halfB])
+  } else {
+    const teethSolid = drawing.sketchOnPlane('XY').extrude(faceWidth)
+    const ring: any = drawCircle(outerR).sketchOnPlane('XY').extrude(faceWidth)
+    solid = ring.cut(teethSolid)
+  }
+
+  if (gearParams.hasToothChamfer && (gearParams.toothChamfer || 0) > 0) {
+    const ra = dims.tipRadius
+    const maxC = Math.min(faceWidth * 0.35, Math.abs(dims.pitchRadius - dims.tipRadius) * 0.8, 5.0)
+    const c = Math.max(0.05, Math.min(gearParams.toothChamfer || 0.6, maxC))
+
+    const topPen = draw([ra, faceWidth - c])
+      .lineTo([ra - 5, faceWidth - c])
+      .lineTo([ra - 5, faceWidth + 2])
+      .lineTo([ra + c, faceWidth + 2])
+      .lineTo([ra + c, faceWidth])
+    const topChamfer = topPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+    const botPen = draw([ra, c])
+      .lineTo([ra - 5, c])
+      .lineTo([ra - 5, -2])
+      .lineTo([ra + c, -2])
+      .lineTo([ra + c, 0])
+    const botChamfer = botPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
+
+    solid = solid.cut(makeCompound([topChamfer, botChamfer]))
+  }
+
+  return solid
+}
+
 self.onmessage = async (e: MessageEvent) => {
-  const { type, params, fileName, exportTarget = 'default' } = e.data
+  const { type, params, gear2Params, fileName, exportTarget = 'default' } = e.data
 
   if (type === 'INIT') {
     try {
@@ -388,7 +440,7 @@ self.onmessage = async (e: MessageEvent) => {
 
       const gearParams = params as GearParameters
       const dims = calculateDimensions(gearParams)
-      const { gearType, faceWidth } = gearParams
+      const { gearType } = gearParams
       stageMs.curvesDone = Date.now()
 
       self.postMessage({ type: 'PROGRESS', progress: 60, message: 'Generating exact involute curves...' })
@@ -424,71 +476,24 @@ self.onmessage = async (e: MessageEvent) => {
           self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
           stepBlob = encodeStep(rackSolid)
         }
-      } else if (gearType === 'internal') {
-        const contour = generateInvoluteProfile(gearParams, 8)
-        let pen = draw(contour[0])
-        for (let i = 1; i < contour.length; i++) {
-          pen = pen.lineTo(contour[i])
-        }
-        const drawing = pen.close()
-
-        const teethSolid: any = drawing.sketchOnPlane('XY').extrude(faceWidth)
-        const outerR = Math.max(dims.tipRadius + 12, (gearParams.outerRingDiameter || 0) / 2 || dims.tipRadius + 15)
-        const ring: any = drawCircle(outerR).sketchOnPlane('XY').extrude(faceWidth)
-        let solid = ring.cut(teethSolid)
-
-        if (gearParams.hasToothChamfer && (gearParams.toothChamfer || 0) > 0) {
-          const ra = dims.tipRadius
-          const maxC = Math.min(faceWidth * 0.35, Math.abs(dims.pitchRadius - dims.tipRadius) * 0.8, 5.0)
-          const c = Math.max(0.05, Math.min(gearParams.toothChamfer || 0.6, maxC))
-
-          const topPen = draw([ra, faceWidth - c])
-            .lineTo([ra - 5, faceWidth - c])
-            .lineTo([ra - 5, faceWidth + 2])
-            .lineTo([ra + c, faceWidth + 2])
-            .lineTo([ra + c, faceWidth])
-          const topChamfer = topPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
-
-          const botPen = draw([ra, c])
-            .lineTo([ra - 5, c])
-            .lineTo([ra - 5, -2])
-            .lineTo([ra + c, -2])
-            .lineTo([ra + c, 0])
-          const botChamfer = botPen.close().sketchOnPlane('XZ').revolve([0, 0, 1])
-
-          solid = solid.cut(makeCompound([topChamfer, botChamfer]))
-        }
-
+      } else if (exportTarget === 'assembly') {
+        const { gear2Params: second, centerDistance } = getAssemblyLayout(gearParams, gear2Params)
+        self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modeling gear 1...' })
+        const solid1 = isInternalGear(gearType)
+          ? buildInternalGearSolid(gearParams)
+          : buildCylindricalGearSolid(gearParams, buildOpts)
+        self.postMessage({ type: 'PROGRESS', progress: 78, message: 'Modeling gear 2...' })
+        const solid2 = buildCylindricalGearSolid(second, buildOpts).translate([centerDistance, 0, 0])
+        self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Assembling multi-body STEP compound...' })
+        stepBlob = encodeStep(makeCompound([solid1, solid2]))
+      } else if (isInternalGear(gearType)) {
+        const solid = buildInternalGearSolid(gearParams)
         self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
-        stepBlob = solid.blobSTEP()
+        stepBlob = encodeStep(solid)
       } else {
-        if (exportTarget === 'assembly') {
-          self.postMessage({ type: 'PROGRESS', progress: 65, message: 'Modeling gear 1...' })
-          const solid1 = buildCylindricalGearSolid(gearParams, buildOpts)
-
-          self.postMessage({ type: 'PROGRESS', progress: 78, message: 'Modeling conjugate gear 2...' })
-          const z2 = gearParams.rackPinionTeeth || 24
-          const pairDims = calculateDimensions(gearParams, z2)
-          const centerDist = pairDims.centerDistance || (gearParams.module * (gearParams.teeth + z2) / 2)
-          const gear2Params: GearParameters = {
-            ...gearParams,
-            gearType: (gearParams.gearType === 'internal' ? 'spur' : gearParams.gearType) as any,
-            teeth: z2,
-            helixHand: (gearParams.helixHand === 'right' ? 'left' : 'right') as any,
-            bodyStyle: 'solid',
-            boreDiameter: gearParams.boreDiameter > 0 ? Math.min(gearParams.boreDiameter, 14) : 0,
-            hasKeyway: false,
-          }
-          const solid2 = buildCylindricalGearSolid(gear2Params, buildOpts).translate([centerDist, 0, 0])
-
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Assembling multi-body STEP compound...' })
-          const assemblyCompound = makeCompound([solid1, solid2])
-          stepBlob = encodeStep(assemblyCompound)
-        } else {
-          const solid = buildCylindricalGearSolid(gearParams, buildOpts)
-          self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
-          stepBlob = encodeStep(solid)
-        }
+        const solid = buildCylindricalGearSolid(gearParams, buildOpts)
+        self.postMessage({ type: 'PROGRESS', progress: 92, message: 'Encoding STEP ISO 10303 AP214 entities...' })
+        stepBlob = encodeStep(solid)
       }
 
       const tEnd = Date.now()

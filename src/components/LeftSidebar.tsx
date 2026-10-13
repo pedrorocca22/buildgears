@@ -10,6 +10,7 @@ export const LeftSidebar: React.FC = () => {
     { id: 'spur', label: 'Spur Gear', desc: 'Straight teeth parallel to shaft axis' },
     { id: 'helical', label: 'Helical Gear', desc: 'Gradual contact, smooth & quiet' },
     { id: 'herringbone', label: 'Herringbone', desc: 'Double helical, zero axial thrust' },
+    { id: 'internal_herringbone', label: 'Internal Herringbone', desc: 'Double-helical ring with an internal pinion' },
     { id: 'internal', label: 'Internal Ring', desc: 'Annular internal teeth for epicyclic gears' },
     { id: 'rack', label: 'Rack & Pinion', desc: 'Linear to rotary kinematic conversion' },
     { id: 'bevel', label: 'Straight Bevel', desc: 'Intersecting shaft angular transmission' },
@@ -36,7 +37,8 @@ export const LeftSidebar: React.FC = () => {
             <button
               key={item.id}
               onClick={() => setGearType(item.id)}
-              className={`w-full text-left p-2.5 rounded-xl border transition-all flex flex-col gap-0.5 ${
+              aria-pressed={isActive}
+              className={`w-full text-left p-2.5 rounded-xl border cursor-pointer focus-visible:outline-2 focus-visible:outline-orange-500 focus-visible:outline-offset-2 transition-all flex flex-col gap-0.5 ${
                 isActive
                   ? 'bg-orange-50 border-orange-300 text-orange-950 font-bold shadow-2xs'
                   : 'bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50 hover:border-slate-300'

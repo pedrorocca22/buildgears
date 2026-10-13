@@ -3,6 +3,7 @@ import { exportGearToSTEP, downloadBlob, type StepStageTimings, type StepQuality
 import { buildGearManifold } from './manifoldEngine'
 import { calculateDimensions, getConjugatePinionParams } from './gearMath'
 import confetti from 'canvas-confetti'
+import { getAssemblyLayout } from './exportParameters'
 
 /**
  * Mensaje final de exportación STEP con tiempos y control de calidad.
@@ -30,6 +31,7 @@ export function formatStepBreakdown(
 
 export interface RunExportOptions {
   params: GearParameters
+  gear2Params?: GearParameters
   format: 'stl' | '3mf' | 'step'
   target?: 'default' | 'rack' | 'pinion' | 'assembly'
   onProgress: (progress: number, message: string) => void
@@ -40,12 +42,14 @@ export interface RunExportOptions {
  */
 export async function runExport({
   params,
+  gear2Params,
   format,
   target = 'default',
   onProgress,
 }: RunExportOptions): Promise<{ fileName: string }> {
   const isRack = params.gearType === 'rack'
   const dims = calculateDimensions(params)
+  const pair = target === 'assembly' && !isRack ? getAssemblyLayout(params, gear2Params) : null
 
   if (format === 'step') {
     const targetLabel = target === 'assembly'
@@ -63,7 +67,8 @@ export async function runExport({
       (progress, message) => {
         onProgress(progress, message)
       },
-      target
+      target,
+      gear2Params,
     )
 
     onProgress(98, 'Downloading STEP file...')
@@ -108,24 +113,13 @@ export async function runExport({
     }
   } else {
     if (target === 'assembly') {
-      const z2 = params.rackPinionTeeth || 24
-      const pairDims = calculateDimensions(params, z2)
-      const centerDist = pairDims.centerDistance || (params.module * (params.teeth + z2) / 2)
+      const { gear2Params: second, centerDistance } = pair!
       onProgress(35, 'Generating gear 1...')
       const solid1 = await buildGearManifold(params)
-      onProgress(60, 'Generating conjugate gear 2...')
-      const gear2Params = {
-        ...params,
-        gearType: (params.gearType === 'internal' ? 'spur' : params.gearType) as any,
-        teeth: z2,
-        helixHand: (params.helixHand === 'right' ? 'left' : 'right') as any,
-        bodyStyle: 'solid' as const,
-        boreDiameter: params.boreDiameter > 0 ? Math.min(params.boreDiameter, 14) : 0,
-        hasKeyway: false,
-      }
-      const solid2 = await buildGearManifold(gear2Params)
-      solid = solid1.add(solid2.translate([centerDist, 0, 0]))
-      fileName = `assembly_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${z2}.${ext}`
+      onProgress(60, 'Generating gear 2...')
+      const solid2 = await buildGearManifold(second)
+      solid = solid1.add(solid2.translate([centerDistance, 0, 0]))
+      fileName = `assembly_${params.gearType}_m${params.module}_z1_${params.teeth}_z2_${second.teeth}.${ext}`
     } else {
       onProgress(45, `Generating ${params.gearType} in Manifold-3D...`)
       solid = await buildGearManifold(params)

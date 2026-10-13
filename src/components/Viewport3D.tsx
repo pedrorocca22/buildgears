@@ -1,3 +1,4 @@
+import { isInternalGear, isHelicalGear, isHerringboneGear, internalPinionType } from '../cad/types'
 import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -299,7 +300,7 @@ export const Viewport3D: React.FC = () => {
           // Cinemática de Cremallera y Piñón:
           const pTeeth = storeState.gear1Params.rackPinionTeeth || 20
           const m = storeState.gear1Params.module
-          const isHerringbone = storeState.gear1Params.rackToothType === 'herringbone'
+          const isHerringbone = isHerringboneGear(storeState.gear1Params.rackToothType)
           const isHelical = storeState.gear1Params.rackToothType === 'helical' || (!storeState.gear1Params.rackToothType && storeState.gear1Params.helixAngle && storeState.gear1Params.helixAngle > 0)
           const effBeta = (isHerringbone || isHelical) ? (storeState.gear1Params.helixAngle || 20) : 0
           const betaRad = effBeta * (Math.PI / 180)
@@ -343,8 +344,8 @@ export const Viewport3D: React.FC = () => {
             const z1 = storeState.gear1Params.teeth
             const z2 = storeState.gear2Params.teeth
             const ratio = z1 / z2
-            const isInternal = storeState.gear1Params.gearType === 'internal'
-            const effBeta = (storeState.gear1Params.gearType === 'helical' || storeState.gear1Params.gearType === 'herringbone') && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
+            const isInternal = isInternalGear(storeState.gear1Params.gearType)
+            const effBeta = (isHelicalGear(storeState.gear1Params.gearType)) && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
             const betaRad = (effBeta * Math.PI) / 180
             const mt = betaRad !== 0 ? storeState.gear1Params.module / Math.cos(betaRad) : storeState.gear1Params.module
             const pDims = calculateDimensions(storeState.gear1Params, storeState.gear2Params)
@@ -368,7 +369,7 @@ export const Viewport3D: React.FC = () => {
           if (pairMeshRef.current) {
             const pTeeth = storeState.gear1Params.rackPinionTeeth || 20
             const m = storeState.gear1Params.module
-            const isHerringbone = storeState.gear1Params.rackToothType === 'herringbone'
+            const isHerringbone = isHerringboneGear(storeState.gear1Params.rackToothType)
             const isHelical = storeState.gear1Params.rackToothType === 'helical' || (!storeState.gear1Params.rackToothType && storeState.gear1Params.helixAngle && storeState.gear1Params.helixAngle > 0)
             const effBeta = (isHerringbone || isHelical) ? (storeState.gear1Params.helixAngle || 20) : 0
             const betaRad = effBeta * (Math.PI / 180)
@@ -391,8 +392,8 @@ export const Viewport3D: React.FC = () => {
           if (pairMeshRef.current) {
             const z1 = storeState.gear1Params.teeth
             const z2 = storeState.gear2Params.teeth
-            const isInternal = storeState.gear1Params.gearType === 'internal'
-            const effBeta = (storeState.gear1Params.gearType === 'helical' || storeState.gear1Params.gearType === 'herringbone') && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
+            const isInternal = isInternalGear(storeState.gear1Params.gearType)
+            const effBeta = (isHelicalGear(storeState.gear1Params.gearType)) && storeState.gear1Params.helixAngle ? storeState.gear1Params.helixAngle : 0
             const betaRad = (effBeta * Math.PI) / 180
             const mt = betaRad !== 0 ? storeState.gear1Params.module / Math.cos(betaRad) : storeState.gear1Params.module
             const pDims = calculateDimensions(storeState.gear1Params, storeState.gear2Params)
@@ -580,8 +581,8 @@ export const Viewport3D: React.FC = () => {
           pairParams = getConjugatePinionParams(gear1Params)
           effDist = pairDims.pinionOperatingY || ((pairDims.circularPitch / Math.PI) * (gear1Params.rackPinionTeeth || 20) / 2)
         } else {
-          const isInternal = gear1Params.gearType === 'internal'
-          const effBeta = (gear1Params.gearType === 'helical' || gear1Params.gearType === 'herringbone') && gear1Params.helixAngle ? gear1Params.helixAngle : 0
+          const isInternal = isInternalGear(gear1Params.gearType)
+          const effBeta = (isHelicalGear(gear1Params.gearType)) && gear1Params.helixAngle ? gear1Params.helixAngle : 0
           const betaRad = (effBeta * Math.PI) / 180
           const mt = betaRad !== 0 ? gear1Params.module / Math.cos(betaRad) : gear1Params.module
           const pairDims = calculateDimensions(gear1Params, gear2Params)
@@ -592,7 +593,7 @@ export const Viewport3D: React.FC = () => {
           pairParams = isInternal
             ? {
                 ...gear2Params,
-                gearType: 'spur',
+                gearType: internalPinionType(gear1Params.gearType),
                 teeth: Math.min(gear2Params.teeth, Math.max(8, gear1Params.teeth - 4)),
               }
             : gear2Params
@@ -625,7 +626,7 @@ export const Viewport3D: React.FC = () => {
           const rLen = gear1Params.rackLength || 160
           const pTeeth = gear1Params.rackPinionTeeth || 20
           const m = gear1Params.module
-          const isHerringbone = gear1Params.rackToothType === 'herringbone'
+          const isHerringbone = isHerringboneGear(gear1Params.rackToothType)
           const isHelical = gear1Params.rackToothType === 'helical' || (!gear1Params.rackToothType && gear1Params.helixAngle && gear1Params.helixAngle > 0)
           const effBeta = (isHerringbone || isHelical) ? (gear1Params.helixAngle || 20) : 0
           const betaRad = effBeta * (Math.PI / 180)
@@ -646,7 +647,7 @@ export const Viewport3D: React.FC = () => {
             mainMeshRef.current.visible = focus === 'both' || focus === 'rack'
           }
         } else {
-          const isInternal = gear1Params.gearType === 'internal'
+          const isInternal = isInternalGear(gear1Params.gearType)
           pairMesh.position.set(effDist, 0, 0)
           const phaseOffset = isInternal ? 0 : Math.PI + Math.PI / pairParams.teeth
           pairMesh.rotation.z = phaseOffset
@@ -772,7 +773,7 @@ export const Viewport3D: React.FC = () => {
     const z2 = isRack ? (gear1Params.rackPinionTeeth || 20) : gear2Params.teeth
     const m = gear1Params.module
     const alphaRad = ((gear1Params.pressureAngle || 20) * Math.PI) / 180
-    const effBeta = (gear1Params.gearType === 'helical' || gear1Params.gearType === 'herringbone') && gear1Params.helixAngle ? gear1Params.helixAngle : 0
+    const effBeta = (isHelicalGear(gear1Params.gearType)) && gear1Params.helixAngle ? gear1Params.helixAngle : 0
     const betaRad = (effBeta * Math.PI) / 180
     const mt = betaRad !== 0 ? m / Math.cos(betaRad) : m
     const alphaT = betaRad !== 0 ? Math.atan(Math.tan(alphaRad) / Math.cos(betaRad)) : alphaRad
@@ -844,7 +845,7 @@ export const Viewport3D: React.FC = () => {
       const actionLine = new THREE.Line(actionGeom, actionMat)
       contactGroup.add(actionLine)
     } else {
-      const isInternal = gear1Params.gearType === 'internal'
+      const isInternal = isInternalGear(gear1Params.gearType)
       const rw1 = dims.operatingPitchRadius1 || ((mt * z1) / 2)
       const rw2 = dims.operatingPitchRadius2 || ((mt * z2) / 2)
       const centerDist = dims.workingCenterDistance || dims.centerDistance || (isInternal ? Math.abs(rw1 - rw2) : rw1 + rw2)

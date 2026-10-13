@@ -6,6 +6,7 @@ const gearLabelMap: Record<string, string> = {
   helical: 'Helical Gear',
   herringbone: 'Herringbone',
   internal: 'Internal Ring Gear',
+  internal_herringbone: 'Internal Herringbone',
   rack: 'Rack & Pinion',
   bevel: 'Straight Bevel',
 }

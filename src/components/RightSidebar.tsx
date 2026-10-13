@@ -1,3 +1,4 @@
+import { isInternalGear, isHelicalGear, isHerringboneGear } from '../cad/types'
 import React from 'react'
 import { useGearStore } from '../store/useGearStore'
 import { getDIN6885Keyway } from '../cad/din6885'
@@ -23,8 +24,8 @@ export const RightSidebar: React.FC = () => {
   const exportStatus = useGearStore((s) => s.exportStatus)
   const openExportModal = useGearStore((s) => s.openExportModal)
 
-  const isHerringbone = params.gearType === 'herringbone' || (params.gearType === 'rack' && params.rackToothType === 'herringbone')
-  const isHelical = params.gearType === 'helical' || params.gearType === 'herringbone' || (params.gearType === 'rack' && (params.rackToothType === 'helical' || params.rackToothType === 'herringbone'))
+  const isHerringbone = isHerringboneGear(params.gearType) || (params.gearType === 'rack' && isHerringboneGear(params.rackToothType))
+  const isHelical = isHelicalGear(params.gearType) || (params.gearType === 'rack' && isHelicalGear(params.rackToothType))
   const isRack = params.gearType === 'rack'
   const isPairActive = isRack ? (gear1Params.rackIncludePinion !== false) : gear2Enabled
   const standardKeyway = getDIN6885Keyway(params.boreDiameter > 0 ? params.boreDiameter : 18)
@@ -38,22 +39,23 @@ export const RightSidebar: React.FC = () => {
     : undefined
   const dims = calculateDimensions(params, matingGear)
 
-  const effBeta = (params.gearType === 'helical' || params.gearType === 'herringbone') && params.helixAngle ? params.helixAngle : 0
+  const effBeta = isHelicalGear(params.gearType) && params.helixAngle ? params.helixAngle : 0
   const betaRad = (effBeta * Math.PI) / 180
   const mt = betaRad !== 0 ? params.module / Math.cos(betaRad) : params.module
-  const isInternal = gear1Params.gearType === 'internal'
+  const isInternal = isInternalGear(gear1Params.gearType)
   const nominalCenterDistance = gear2Enabled
     ? (isInternal
         ? Math.abs((mt * (gear1Params.teeth - gear2Params.teeth)) / 2)
         : (mt * (gear1Params.teeth + gear2Params.teeth)) / 2)
     : 0
-  const workingCenterDistance = dims.workingCenterDistance || nominalCenterDistance
+  const pairDims = calculateDimensions(gear1Params, gear2Params)
+  const workingCenterDistance = pairDims.workingCenterDistance || nominalCenterDistance
   const centerDistance = workingCenterDistance
   const gearRatio = gear2Enabled && gear1Params.teeth > 0 ? gear2Params.teeth / gear1Params.teeth : 1
   const speedG1 = motorRpm
   const speedG2 = gear2Enabled && gear2Params.teeth > 0 ? Number(((motorRpm * gear1Params.teeth) / gear2Params.teeth).toFixed(1)) : 0
 
-  const rackToothTitle = params.rackToothType === 'herringbone'
+  const rackToothTitle = isHerringboneGear(params.rackToothType)
     ? 'Herringbone Rack & Pinion'
     : params.rackToothType === 'helical'
     ? 'Helical Rack & Pinion'
@@ -64,6 +66,7 @@ export const RightSidebar: React.FC = () => {
     helical: 'Helical Gear',
     herringbone: 'Herringbone Gear',
     internal: 'Internal Ring Gear',
+    internal_herringbone: 'Internal Herringbone',
     rack: rackToothTitle,
     bevel: 'Bevel Gear',
   }
@@ -233,7 +236,7 @@ export const RightSidebar: React.FC = () => {
                         onClick={() => autoCompensateProfileShift()}
                         className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors flex items-center justify-center gap-1"
                       >
-                        <span>⚡ Auto-compensar V-cero (x2 = -{params.profileShift.toFixed(2)})</span>
+                        <span>⚡ {gear1Params.gearType === 'internal_herringbone' ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}</span>
                       </button>
                     </div>
                   )}
@@ -499,7 +502,7 @@ export const RightSidebar: React.FC = () => {
                 { id: 'stub', label: 'Stub' },
                 { id: 'deep', label: 'Deep HCR' },
                 { id: 'cycloidal', label: 'Cycloidal' },
-              ].map((tp) => (
+              ].filter((tp) => gear1Params.gearType !== 'internal_herringbone' || tp.id !== 'cycloidal').map((tp) => (
                 <button
                   key={tp.id}
                   type="button"
@@ -594,14 +597,15 @@ export const RightSidebar: React.FC = () => {
                 <span>45°</span>
               </div>
 
-              {isHerringbone ? (
+              {isHerringbone && (
                 <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] flex items-center justify-between">
                   <span className="font-semibold">Zero net axial force (Fa = 0)</span>
                   <span className="font-bold text-emerald-600 text-[9px] uppercase tracking-wide">Self-Centering V-Chevron</span>
                 </div>
-              ) : (
+              )}
+              {(!isHerringbone || gear1Params.gearType === 'internal_herringbone') && (
                 <div className="space-y-1">
-                  <span className="text-[10px] text-slate-500">Rack helix hand:</span>
+                  <span className="text-[10px] text-slate-500">{isRack ? 'Rack helix hand:' : 'Helix hand:'}</span>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       type="button"
@@ -626,7 +630,7 @@ export const RightSidebar: React.FC = () => {
                       Left Hand (LH)
                     </button>
                   </div>
-                  {isRack && (
+                  {(isRack || gear1Params.gearType === 'internal_herringbone') && (
                     <p className="text-[9.5px] text-slate-400 leading-tight pt-1">
                       * Pinion automatically adopts matching helix hand ({params.helixHand === 'right' ? 'RH' : 'LH'}) for parallel conjugate contact.
                     </p>
@@ -731,7 +735,7 @@ export const RightSidebar: React.FC = () => {
                       onClick={() => autoCompensateProfileShift()}
                       className="w-full py-1 px-2 rounded-md bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] shadow-xs transition-colors"
                     >
-                      Auto-compensar V-cero (x2 = -{params.profileShift.toFixed(2)})
+                      {gear1Params.gearType === 'internal_herringbone' ? `Match profile shifts (x2 = ${gear1Params.profileShift.toFixed(2)})` : `Auto-compensar V-cero (x2 = -${params.profileShift.toFixed(2)})`}
                     </button>
                   </div>
                 )}
@@ -1504,7 +1508,7 @@ export const RightSidebar: React.FC = () => {
         {/* SECTION 2 & 3 FOR NORMAL GEARS */}
         {!isRack && (
           <>
-            {params.gearType === 'internal' ? (
+            {isInternalGear(params.gearType) ? (
               <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 border-b border-slate-100 pb-2">
                   <span>2 · Annular Ring Dimensions</span>
@@ -1516,21 +1520,21 @@ export const RightSidebar: React.FC = () => {
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[11px] font-medium text-slate-700">Outer Ring Diameter (D_out)</span>
                     <span className="font-mono text-xs font-bold text-slate-900">
-                      {params.outerRingDiameter || Math.round((dims.tipRadius + 15) * 2)} mm
+                      {params.outerRingDiameter || Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 15) * 2)} mm
                     </span>
                   </div>
                   <input
                     type="range"
-                    min={Math.round((dims.tipRadius + 10) * 2)}
-                    max={Math.round((dims.tipRadius + 50) * 2)}
+                    min={Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 10) * 2)}
+                    max={Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 50) * 2)}
                     step="1"
-                    value={params.outerRingDiameter || Math.round((dims.tipRadius + 15) * 2)}
+                    value={params.outerRingDiameter || Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 15) * 2)}
                     onChange={(e) => setGearParam('outerRingDiameter', parseFloat(e.target.value))}
                     className="w-full accent-orange-500 cursor-pointer"
                   />
                   <div className="flex justify-between text-[9px] text-slate-400 mt-0.5">
-                    <span>{Math.round((dims.tipRadius + 10) * 2)} mm</span>
-                    <span>{Math.round((dims.tipRadius + 50) * 2)} mm</span>
+                    <span>{Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 10) * 2)} mm</span>
+                    <span>{Math.round((Math.max(dims.tipRadius, dims.rootRadius) + 50) * 2)} mm</span>
                   </div>
                 </div>
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-[10px] text-slate-500">

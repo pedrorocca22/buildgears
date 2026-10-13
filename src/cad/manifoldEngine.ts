@@ -1,3 +1,4 @@
+import { isInternalGear, isHerringboneGear } from './types'
 import Module from 'manifold-3d'
 import manifoldWasmUrl from 'manifold-3d/manifold.wasm?url'
 import * as THREE from 'three'
@@ -77,7 +78,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
     const contour = generateRackProfile(params, rLength, rHeight)
     const cs = m3d.CrossSection.ofPolygons([contour])
 
-    const isHerringboneRack = params.rackToothType === 'herringbone'
+    const isHerringboneRack = isHerringboneGear(params.rackToothType)
     const isHelicalRack = params.rackToothType === 'helical' || (!params.rackToothType && params.helixAngle && params.helixAngle > 0)
     const effectiveAngle = params.helixAngle || 20
 
@@ -189,13 +190,21 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
         }
       }
     }
-  } else if (gearType === 'internal') {
+  } else if (isInternalGear(gearType)) {
     // Corona interior
     const contour = generateInvoluteProfile(params, 8)
     const cs = m3d.CrossSection.ofPolygons([contour])
-    const teethVoid = cs.extrude(faceWidth + 2, 0, 0, [1, 1], true)
+    let teethVoid: any
+    if (isHerringboneGear(gearType)) {
+      const halfTwist = dims.twistAngleDeg / 2
+      const divisions = Math.max(12, Math.ceil(Math.abs(halfTwist) / 1.5))
+      const top = cs.extrude(faceWidth / 2, divisions, halfTwist, [1, 1], false)
+      teethVoid = top.add(top.mirror([0, 0, 1]))
+    } else {
+      teethVoid = cs.extrude(faceWidth + 2, 0, 0, [1, 1], true)
+    }
 
-    const outerR = Math.max(dims.tipRadius + 12, (params.outerRingDiameter || 0) / 2 || dims.tipRadius + 15)
+    const outerR = Math.max(Math.max(dims.tipRadius, dims.rootRadius) + 12, (params.outerRingDiameter || 0) / 2 || Math.max(dims.tipRadius, dims.rootRadius) + 15)
     const ringCyl = m3d.Manifold.cylinder(faceWidth, outerR, outerR, 64, true)
     gearSolid = ringCyl.subtract(teethVoid)
 
@@ -222,7 +231,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
       const twist = dims.twistAngleDeg
       const divisions = Math.max(16, Math.ceil(Math.abs(twist) / 1.5))
       gearSolid = cs.extrude(faceWidth, divisions, twist, [1, 1], true).rotate([0, 0, -twist / 2])
-    } else if (gearType === 'herringbone') {
+    } else if (isHerringboneGear(gearType)) {
       // Doble hélice / Espiga continua simétrica:
       // Se extruye la mitad superior desde Z=0 con torsión +halfTwist,
       // y se refleja respecto a Z=0 para obtener la mitad inferior con torsión -halfTwist.
@@ -262,7 +271,7 @@ export async function buildGearManifold(params: GearParameters): Promise<any> {
   }
 
   // Si no es cremallera ni corona interior, aplicar buje, taladro, chavetero y aligeramiento
-  if (gearType !== 'rack' && gearType !== 'internal') {
+  if (gearType !== 'rack' && !isInternalGear(gearType)) {
     // Buje adicional (Hub)
     if (bodyStyle === 'hub' && hubDiameter > boreDiameter) {
       const offset = hubOffset || 0

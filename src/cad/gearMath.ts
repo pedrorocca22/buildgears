@@ -1,3 +1,4 @@
+import { isInternalGear, isHelicalGear, isHerringboneGear } from './types'
 import type { GearParameters, CalculatedDimensions } from './types'
 
 /**
@@ -25,6 +26,28 @@ export function calculateDimensions(
   params: GearParameters,
   mating?: number | Partial<GearParameters>
 ): CalculatedDimensions {
+  if (!isInternalGear(params.gearType) && typeof mating === 'object' && mating.gearType === 'internal_herringbone') {
+    const own = calculateDimensions(params)
+    const pair = calculateDimensions({ ...params, ...mating }, params)
+    return {
+      ...own,
+      centerDistance: pair.centerDistance,
+      workingCenterDistance: pair.workingCenterDistance,
+      workingCenterDistanceOffset: pair.workingCenterDistanceOffset,
+      operatingPressureAngleDeg: pair.operatingPressureAngleDeg,
+      operatingPitchRadius1: pair.operatingPitchRadius2,
+      operatingPitchRadius2: pair.operatingPitchRadius1,
+      gearRatio: mating.teeth ? mating.teeth / params.teeth : undefined,
+      contactRatio: pair.contactRatio,
+      contactRatioStatus: pair.contactRatioStatus,
+      overlapRatio: pair.overlapRatio,
+      totalContactRatio: pair.totalContactRatio,
+      bottomClearance: pair.bottomClearance,
+      hasMeshInterference: pair.hasMeshInterference,
+      meshInterferenceMessage: pair.meshInterferenceMessage,
+      internalInterferenceWarning: pair.internalInterferenceWarning,
+    }
+  }
   const {
     module: mn,
     teeth: z,
@@ -63,10 +86,10 @@ export function calculateDimensions(
 
   // Ángulo de hélice efectivo
   let effectiveBetaDeg = 0
-  if (gearType === 'helical' || gearType === 'herringbone') {
+  if (isHelicalGear(gearType)) {
     effectiveBetaDeg = betaDeg
   } else if (gearType === 'rack') {
-    if (params.rackToothType === 'helical' || params.rackToothType === 'herringbone') {
+    if (isHelicalGear(params.rackToothType)) {
       effectiveBetaDeg = betaDeg || 20
     }
   }
@@ -86,13 +109,14 @@ export function calculateDimensions(
   const ha = (haCoeff + x) * mn
   const hf = (hfCoeff - x) * mn
 
-  const ra = rp + ha
+  const internalChevron = gearType === 'internal_herringbone'
+  const ra = internalChevron ? Math.max(0.5, rp - (haCoeff - x) * mn) : rp + ha
   const da = ra * 2
-  const rf = Math.max(0.5, rp - hf)
+  const rf = internalChevron ? rp + (hfCoeff + x) * mn : Math.max(0.5, rp - hf)
   const df = rf * 2
 
   const circularPitch = Math.PI * mt
-  const normalToothThickness = mn * (Math.PI / 2 + 2 * x * Math.tan(alphaRad))
+  const normalToothThickness = mn * (Math.PI / 2 + (internalChevron ? -2 : 2) * x * Math.tan(alphaRad))
 
   // Ángulo de torsión helicoidal sobre la cara
   const twistAngleDeg =
@@ -107,7 +131,7 @@ export function calculateDimensions(
   const hasUndercutWarning = z < undercutLimitZ && x < (recommendedShift * 0.8)
 
   // Empuje axial (0% si es recto o doble hélice espiga con anulación)
-  const isHerringbone = gearType === 'herringbone' || (gearType === 'rack' && params.rackToothType === 'herringbone')
+  const isHerringbone = isHerringboneGear(gearType) || (gearType === 'rack' && isHerringboneGear(params.rackToothType))
   const isSpur = gearType === 'spur' || (gearType === 'rack' && (params.rackToothType === 'spur' || !params.rackToothType && !effectiveBetaDeg))
   const axialThrustRatio = isHerringbone || isSpur || effectiveBetaDeg === 0 ? 0 : Number(Math.sin(betaRad).toFixed(3))
 
@@ -123,10 +147,10 @@ export function calculateDimensions(
     const invAlphaT = Math.tan(alphaT) - alphaT
     const invAlphaAt = Math.tan(alphaAt) - alphaAt
     // Espesor en el diámetro primitivo
-    const normalPitchThickness = mn * (Math.PI / 2 + 2 * x * Math.tan(alphaRad)) - (params.backlash ?? 0.05) / 2
+    const normalPitchThickness = mn * (Math.PI / 2 + (internalChevron ? -2 : 2) * x * Math.tan(alphaRad)) - (params.backlash ?? 0.05) / 2
     const transversePitchThickness = normalPitchThickness / (betaRad !== 0 ? Math.cos(betaRad) : 1)
     // Espesor en la punta según la función de involuta
-    const sat = da * (transversePitchThickness / d + invAlphaT - invAlphaAt)
+    const sat = da * (transversePitchThickness / d + (internalChevron ? invAlphaAt - invAlphaT : invAlphaT - invAlphaAt))
     const san = sat * (betaRad !== 0 ? Math.cos(betaRad) : 1)
     topLandThickness = Math.max(0, Number(san.toFixed(3)))
 
@@ -215,7 +239,7 @@ export function calculateDimensions(
     const ra2 = rp2 + ha2
     const rf2 = Math.max(0.5, rp2 - hf2)
 
-    if (gearType === 'internal') {
+    if (isInternalGear(gearType)) {
       const aNominal = Math.abs((mt * (z - teeth2)) / 2)
       centerDistance = aNominal
       gearRatio = teeth2 / z
@@ -233,12 +257,18 @@ export function calculateDimensions(
       operatingPitchRadius1 = Number((aWorking * (z / Math.max(1, z - z2))).toFixed(3))
       operatingPitchRadius2 = Number((aWorking * (z2 / Math.max(1, z - z2))).toFixed(3))
 
-      const raInternal = Math.max(0.5, rp - ha)
+      const raInternal = internalChevron ? ra : Math.max(0.5, rp - ha)
       const gAlpha = Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) -
                      Math.sqrt(Math.max(0, raInternal * raInternal - rb * rb)) +
                      (rp - rp2) * Math.sin(alphaWt)
       contactRatio = Number((Math.max(0, gAlpha) / pbt).toFixed(2))
-      bottomClearance = Number((rp - ha - rf2).toFixed(3))
+      bottomClearance = internalChevron
+        ? Number(Math.min(rf - aWorking - ra2, ra - aWorking - rf2).toFixed(3))
+        : Number((rp - ha - rf2).toFixed(3))
+      if (internalChevron && bottomClearance < 0) {
+        hasMeshInterference = true
+        meshInterferenceMessage = 'Internal teeth have negative root clearance. Adjust profile shifts or tooth counts.'
+      }
     } else {
       const aNominal = (mt * (z + teeth2)) / 2
       centerDistance = aNominal
@@ -328,7 +358,7 @@ export function calculateDimensions(
 
   // 3. Alerta de interferencia trocoidal en coronas interiores
   let internalInterferenceWarning = false
-  if (gearType === 'internal' && teeth2 && teeth2 > 0) {
+  if (isInternalGear(gearType) && teeth2 && teeth2 > 0) {
     const deltaZ = z - teeth2
     if (deltaZ < 8) {
       internalInterferenceWarning = true
@@ -422,6 +452,7 @@ export function generateInvoluteProfile(
   params: GearParameters,
   pointsPerFlank = 10
 ): [number, number][] {
+  if (params.gearType === 'internal_herringbone') return generateInternalCavityProfile(params, pointsPerFlank)
   const {
     module: mn,
     teeth: z,
@@ -451,7 +482,7 @@ export function generateInvoluteProfile(
   }
 
   const alphaRad = (alphaDeg * Math.PI) / 180
-  const betaRad = (gearType === 'helical' || gearType === 'herringbone' ? (betaDeg * Math.PI) / 180 : 0)
+  const betaRad = (isHelicalGear(gearType) ? (betaDeg * Math.PI) / 180 : 0)
 
   const mt = betaRad !== 0 ? mn / Math.cos(betaRad) : mn
   const alphaT = betaRad !== 0 ? Math.atan(Math.tan(alphaRad) / Math.cos(betaRad)) : alphaRad
@@ -634,7 +665,7 @@ export function generateRackProfile(
 
   const alphaRad = (alphaDeg * Math.PI) / 180
   let effectiveBeta = 0
-  if (rackToothType === 'helical' || rackToothType === 'herringbone') {
+  if (isHelicalGear(rackToothType)) {
     effectiveBeta = betaDeg || 20
   } else if (gearType === 'helical' || (gearType === 'rack' && betaDeg > 0 && rackToothType !== 'spur')) {
     effectiveBeta = betaDeg
@@ -732,7 +763,7 @@ export function generateRackProfile(
  * misma norma de perfil de diente (ISO, Stub, HCR, Cicloidal) y cinemática conjugada complementaria.
  */
 export function getConjugatePinionParams(params: GearParameters): GearParameters {
-  const isHerringbone = params.rackToothType === 'herringbone'
+  const isHerringbone = isHerringboneGear(params.rackToothType)
   const isHelical = params.rackToothType === 'helical' || (!params.rackToothType && params.helixAngle && params.helixAngle > 0)
   const pinionGearType = isHerringbone ? 'herringbone' : isHelical ? 'helical' : 'spur'
   const effAngle = (isHerringbone || isHelical) ? (params.helixAngle || 20) : 0
@@ -761,3 +792,44 @@ export function getConjugatePinionParams(params: GearParameters): GearParameters
 }
 
 
+
+/** Cavity outline: involute tooth spaces widen inward, with the ring teeth pointing at its center. */
+function generateInternalCavityProfile(params: GearParameters, pointsPerFlank: number): [number, number][] {
+  const dims = calculateDimensions(params)
+  const { pitchRadius: rp, baseRadius: rb, tipRadius: ra, rootRadius: rf } = dims
+  const beta = params.helixAngle * Math.PI / 180
+  const alpha = params.pressureAngle * Math.PI / 180
+  const alphaT = Math.atan(Math.tan(alpha) / Math.cos(beta))
+  const invPitch = Math.tan(alphaT) - alphaT
+  const toothThickness = (params.module * (Math.PI / 2 - 2 * params.profileShift * Math.tan(alpha))
+    - (params.backlash ?? 0.05) / 2) / Math.cos(beta)
+  const pitchAngle = 2 * Math.PI / params.teeth
+  const halfGap = (pitchAngle - toothThickness / rp) / 2
+  const gapAngle = (radius: number) => {
+    const a = Math.acos(Math.min(1, rb / radius))
+    return halfGap + invPitch - (Math.tan(a) - a)
+  }
+  const flank: [number, number][] = []
+  const start = Math.max(ra, rb)
+  if (ra < rb) flank.push([ra * Math.cos(gapAngle(rb)), -ra * Math.sin(gapAngle(rb))])
+  for (let i = 0; i <= pointsPerFlank; i++) {
+    const r = start + (rf - start) * i / pointsPerFlank
+    const angle = gapAngle(r)
+    flank.push([r * Math.cos(angle), -r * Math.sin(angle)])
+  }
+  const space: [number, number][] = [...flank, ...flank.map(([x, y]): [number, number] => [x, -y]).reverse()]
+  const contour: [number, number][] = []
+  for (let tooth = 0; tooth < params.teeth; tooth++) {
+    const phase = tooth * pitchAngle
+    const cos = Math.cos(phase)
+    const sin = Math.sin(phase)
+    for (const [x, y] of space) contour.push([x * cos - y * sin, x * sin + y * cos])
+    const end = phase + gapAngle(Math.max(ra, rb))
+    const next = phase + pitchAngle - gapAngle(Math.max(ra, rb))
+    for (let k = 1; k < 4; k++) {
+      const angle = end + (next - end) * k / 4
+      contour.push([ra * Math.cos(angle), ra * Math.sin(angle)])
+    }
+  }
+  return ensureCounterClockwise(contour)
+}
